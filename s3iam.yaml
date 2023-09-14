@@ -1,0 +1,760 @@
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  ScopeRegions:
+    Description: A comma separated list of AWS regions, e.g. us-east-1, us-east-2
+    Type: CommaDelimitedList
+  UseLakeFormationPermissions:
+    Type: String
+    Default: True
+    AllowedValues:
+    - True
+    - False
+Conditions:
+  CreateLakeFormationPermissions: !Equals [!Ref UseLakeFormationPermissions, True]
+  NoCreateLakeFormationPermissions: !Equals [!Ref UseLakeFormationPermissions, False]
+Resources:
+  LoggingS3Bucket:
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W35
+            reason: THis is the logging bucket for WAFLogs, would result in circular logging
+    Type: "AWS::S3::Bucket"
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerPreferred
+  LoggingS3BucketPolicy:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      Bucket: !Ref LoggingS3Bucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: logging.s3.amazonaws.com
+            Action:
+              - s3:PutObject
+            Resource: !Sub "${LoggingS3Bucket.Arn}/*"
+            Condition:
+              ArnLike:
+                aws:SourceARN: !GetAtt WafLogsS3Bucket.Arn
+              StringEquals:
+                aws:SourceAccount: !Ref "AWS::AccountId"
+          - Effect: Deny
+            Action: s3:*
+            Resource:
+              - !Sub "${LoggingS3Bucket.Arn}/*"
+              - !GetAtt LoggingS3Bucket.Arn
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
+            Principal: "*"
+  WafLogsS3Bucket:
+    Type: "AWS::S3::Bucket"
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !GetAtt KMSKeyWAFLog.Arn
+      LoggingConfiguration:
+        DestinationBucketName: !Ref LoggingS3Bucket
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerPreferred
+  WafLogsS3BucketPolicy:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      Bucket: !Ref WafLogsS3Bucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt "WAFDeliveryRole.Arn"
+            Action:
+              - s3:AbortMultipartUpload
+              - s3:GetBucketLocation
+              - s3:GetObject
+              - s3:ListBucket
+              - s3:ListBucketMultipartUploads
+              - s3:PutObject
+              - s3:PutObjectAcl
+            Resource:
+              - !Sub "${WafLogsS3Bucket.Arn}/*"
+              - !GetAtt WafLogsS3Bucket.Arn
+          - Effect: Deny
+            Action: s3:*
+            Resource:
+              - !Sub "${WafLogsS3Bucket.Arn}/*"
+              - !GetAtt WafLogsS3Bucket.Arn
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
+            Principal: "*"
+  KMSKeyWAFLog:
+    Type: 'AWS::KMS::Key'
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: WAF Log Key
+      EnableKeyRotation: True
+      KeyPolicy:
+        Version: 2012-10-17
+        Id: key-default-1
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+  WAFDeliveryRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: ""
+            Effect: Allow
+            Principal:
+              Service: firehose.amazonaws.com
+            Action: "sts:AssumeRole"
+            Condition:
+              StringEquals:
+                "sts:ExternalId": !Ref "AWS::AccountId"
+  WAFdeliveryPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: firehose_delivery_policy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Action:
+            - "kms:Decrypt"
+            - "kms:GenerateDataKey"
+          Resource:
+            - !GetAtt "KMSKeyWAFLog.Arn"
+          Condition:
+            StringEquals:
+              kms:ViaService: !Sub "s3.${AWS::Region}.amazonaws.com"
+            StringLike:
+              "kms:EncryptionContext:aws:s3:arn":
+                - !Sub "arn:aws:s3:::${WafLogsS3Bucket.Arn}/*"
+                - !Sub "arn:aws:s3:::${LoggingS3Bucket.Arn}/*"
+        - Effect: Allow
+          Action:
+            - "s3:AbortMultipartUpload"
+            - "s3:GetBucketLocation"
+            - "s3:GetObject"
+            - "s3:ListBucket"
+            - "s3:ListBucketMultipartUploads"
+            - "s3:PutObject"
+          Resource:
+            - !Sub "arn:aws:s3:::${WafLogsS3Bucket.Arn}"
+            - !Sub "arn:aws:s3:::${WafLogsS3Bucket.Arn}/*"
+            - !Sub "arn:aws:s3:::${LoggingS3Bucket.Arn}"
+            - !Sub "arn:aws:s3:::${LoggingS3Bucket.Arn}/*"
+        - Effect: Allow
+          Action:
+            - "logs:PutLogEvents"
+          Resource:
+            - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/kinesisfirehose:log-stream:aws-waf-logs-delivery-${AWS::AccountId}-${AWS::Region}"
+        - Effect: Allow
+          Action:
+            - "logs:PutLogEvents"
+          Resource:
+            - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/kinesisfirehose:log-stream:aws-waf-logs-delivery-${AWS::AccountId}-${AWS::Region}"
+      Roles:
+        - !Ref WAFDeliveryRole
+
+
+  GlueDatabaseWAFLogs:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: "oneclickshieldwaf"
+        LocationUri: !Sub 's3://${WafLogsS3Bucket}/${AWS::Region}/'
+  GlueTableWAFLogs:
+    DependsOn: GlueDatabaseWAFLogs
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: "oneclickshieldwaf"
+      TableInput:
+        Name: waf_logs_raw
+        TableType: EXTERNAL_TABLE
+        PartitionKeys:
+          - Name: datehour
+            Type: string
+          - Name: region
+            Type: string
+
+        Parameters:
+          EXTERNAL: 'TRUE'
+          projection.region.type: 'enum'
+          projection.region.values: !Join [',',!Ref ScopeRegions]
+          projection.datehour.format: yyyy/MM/dd/HH
+          projection.datehour.interval: '1'
+          projection.datehour.interval.unit: HOURS
+          projection.datehour.range: 2023/06/01/00,NOW
+          projection.datehour.type: date
+          projection.enabled: 'true'
+          storage.location.template: !Sub 's3://${WafLogsS3Bucket}/firehose/${!region}/${!datehour}'
+        StorageDescriptor:
+          InputFormat: org.apache.hadoop.mapred.TextInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+          Location: !Sub 's3://${WafLogsS3Bucket}/firehose/'
+          SerdeInfo:
+            SerializationLibrary: org.openx.data.jsonserde.JsonSerDe
+            Parameters:
+              serialization.format: '1'
+          Columns:
+            - Name: timestamp
+              Type: bigint
+            - Name: formatversion
+              Type: int
+            - Name: webaclid
+              Type: string
+            - Name: terminatingruleid
+              Type: string
+            - Name: terminatingruletype
+              Type: string
+            - Name: action
+              Type: string
+            - Name: terminatingrulematchdetails
+              Type: array<struct<conditiontype:string,location:string,matcheddata:array<string>>>
+            - Name: httpsourcename
+              Type: string
+            - Name: httpsourceid
+              Type: string
+            - Name: rulegrouplist
+              Type: array<struct<rulegroupid:string,terminatingrule:struct<ruleid:string,action:string,rulematchdetails:string>,nonterminatingmatchingrules:array<struct<ruleid:string,action:string,rulematchdetails:array<struct<conditiontype:string,location:string,matcheddata:array<string>>>>>,excludedrules:array<struct<ruleid:string,exclusiontype:string>>>>
+            - Name: ratebasedrulelist
+              Type: array<struct<ratebasedruleid:string,limitkey:string,maxrateallowed:int>>
+            - Name: nonterminatingmatchingrules
+              Type: array<struct<ruleid:string,action:string>>
+            - Name: requestheadersinserted
+              Type: string
+            - Name: responsecodesent
+              Type: string
+            - Name: httprequest
+              Type: struct<clientip:string,country:string,headers:array<struct<name:string,value:string>>,uri:string,args:string,httpversion:string,httpmethod:string,requestid:string>
+            - Name: labels
+              Type: array<struct<name:string>>
+  AthenaWorkGroup:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Type: AWS::Athena::WorkGroup
+    Properties:
+      Name: 'oneclickshieldwaf-Workgroup'
+      State: ENABLED
+      WorkGroupConfiguration:
+        EnforceWorkGroupConfiguration: false
+        ResultConfiguration:
+          OutputLocation: !Sub 's3://${WafLogsS3Bucket}/athenaOutput/'
+          EncryptionConfiguration:
+            EncryptionOption: SSE_S3
+  BuildAthenaViewsCallWithLakeFormationPermissions:
+    Type: Custom::BuildAthenaViews
+    Condition: CreateLakeFormationPermissions
+    DependsOn: AthenaTableLakeFormationSelectPermissions
+    Properties:
+      ServiceToken: !GetAtt AthenaCreateViewsQueryLambda.Arn
+      DetailedViewQueryId: !Ref AthenaNamedQueryIPDetailed
+  BuildAthenaViewsCall:
+    Type: Custom::BuildAthenaViews
+    Condition: NoCreateLakeFormationPermissions
+    DependsOn: AthenaQueryLambdaPolicy
+    Properties:
+      ServiceToken: !GetAtt AthenaCreateViewsQueryLambda.Arn
+      DetailedViewQueryId: !Ref AthenaNamedQueryIPDetailed
+
+  AthenaQueryLambdaRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+  AthenaQueryLambdaPolicy:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: LocalPolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'athena:GetQueryExecution'
+              - 'athena:GetNamedQuery'
+              - 'athena:ListNamedQueries'
+              - 'athena:StartQueryExecution'
+            Resource: !Sub "arn:aws:athena:${AWS::Region}:${AWS::AccountId}:workgroup/${AthenaWorkGroup}"
+          - Effect: Allow
+            Action:
+              - 'logs:CreateLogGroup'
+              - 'logs:CreateLogStream'
+              - 'logs:PutLogEvents'
+            Resource: 'arn:aws:logs:*:*:*'
+          - Effect: Allow
+            Action:
+              - 'glue:Get*'
+              - 'glue:Update*'
+              - 'glue:CreateTable'
+            Resource:
+                - !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:catalog
+                - !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:database/default
+                - !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:database/default/*
+                - !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:database/oneclickshieldwaf
+                - !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:table/oneclickshieldwaf/*
+          - Effect: Allow
+            Action:
+              - 'athena:DeleteWorkGroup'
+            Resource:
+              - !Sub "arn:aws:athena:${AWS::Region}:${AWS::AccountId}:workgroup/oneclickshieldwaf-Workgroup"
+          - Effect: Allow
+            Action:
+              - 's3:Get*'
+              - 's3:Put*'
+              - 's3:List*'
+            Resource:
+              - !Sub "arn:aws:s3:::${WafLogsS3Bucket}/athenaOutput/*"
+              - !Sub "arn:aws:s3:::${WafLogsS3Bucket}"
+      Roles:
+        - !Ref AthenaQueryLambdaRole
+  AthenaCreateViewsQueryLambda:
+    Type: 'AWS::Lambda::Function'
+    DependsOn: AthenaQueryLambdaPolicy
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: "Wildcard permissions for Athena needed"
+          - id: W89
+            reason: "VPC bound lambda is not appropiate for this use case"
+          - id: W92
+            reason: "Reserved concurrency is not appropiate for this use case"
+    Properties:
+      Runtime: python3.9
+      Role: !GetAtt AthenaQueryLambdaRole.Arn
+      Handler: index.lambda_handler
+      Timeout: 300
+      Environment:
+        Variables:
+          s3BasePath: !Sub 's3://${WafLogsS3Bucket}/athenaOutput/'
+          workGroupName: !Ref "AthenaWorkGroup"
+          glueDatabase: !Ref "GlueDatabaseWAFLogs"
+      Code:
+        ZipFile: |
+          import boto3
+          import datetime
+          import os
+          import time
+          import json
+          import urllib3
+          import botocore
+          s3BasePath = os.environ['s3BasePath']
+          workGroupName = os.environ['workGroupName']
+          database = os.environ['glueDatabase']
+          athena_client = boto3.client('athena')
+          http = urllib3.PoolManager()
+          responseData = {}
+          def cfnrespond(event, context, responseStatus, responseData, physicalResourceId=None, noEcho=False):
+              responseUrl = event['ResponseURL']
+              responseBody = {}
+              responseBody['Status'] = responseStatus
+              responseBody['Reason'] = 'See the details in CloudWatch Log Stream: ' + context.log_stream_name
+              responseBody['PhysicalResourceId'] = physicalResourceId or context.log_stream_name
+              responseBody['StackId'] = event['StackId']
+              responseBody['RequestId'] = event['RequestId']
+              responseBody['LogicalResourceId'] = event['LogicalResourceId']
+              responseBody['NoEcho'] = noEcho
+              responseBody['Data'] = responseData
+              json_responseBody = json.dumps(responseBody)
+              print("Response body:\n" + json_responseBody)
+              headers = {
+                'content-type' : '',
+                'content-length' : str(len(json_responseBody))
+              }
+              try:
+                  response = http.request('PUT',responseUrl,body=json_responseBody.encode('utf-8'),headers=headers)
+                  print("Status code: " + response.reason)
+              except Exception as e:
+                  print("send(..) failed executing requests.put(..): " + str(e))
+          def wait_for_queries_to_finish(executionIdList):
+            while (executionIdList != []):
+              for eId in executionIdList:
+                currentState = athena_client.get_query_execution(QueryExecutionId=eId)['QueryExecution']['Status']['State']
+                if currentState in ['SUCCEEDED']:
+                  executionIdList.remove (eId)
+                elif currentState in ['FAILED','CANCELLED']:
+                  return (executionIdList)
+              time.sleep(1)
+            return ([])
+          def lambda_handler(event, context):
+            print (json.dumps(event))
+            if event['RequestType'] == 'Delete':
+              try:
+                athena_client.delete_work_group(
+                    WorkGroup=workGroupName,
+                    RecursiveDeleteOption=True
+                  )
+                cfnrespond(event, context, "SUCCESS", {}, "Graceful Delete")
+                return ()
+              except:
+                cfnrespond(event, context, "FAILED", {}, "")
+                return ()
+            else:
+              executionIdList = []
+              transformQuery = False
+              transformQuery = True
+              detailedViewQueryId = event['ResourceProperties']['DetailedViewQueryId']
+              baseQueryString = athena_client.get_named_query(
+                NamedQueryId=detailedViewQueryId)['NamedQuery']['QueryString']
+              queryString = "CREATE OR REPLACE VIEW waf_detailed AS " + baseQueryString
+              try:
+                r = athena_client.start_query_execution(
+                      QueryString=queryString,
+                      QueryExecutionContext={
+                        'Database': database,
+                        'Catalog': 'AwsDataCatalog'},
+                      WorkGroup=workGroupName
+                  )
+              except botocore.exceptions.ClientError as error:
+                print (error.response)
+                cfnrespond(event, context, "FAILED", {}, "")
+                return ()
+              #Wait for query to finish, it should take a second but wait just in case
+              if wait_for_queries_to_finish([r['QueryExecutionId']]) != []:
+                cfnrespond(event, context, "FAILED", responseData, "CreateViewQueriesFailed")
+                return ("QueriesFailed")
+              #Get all named query IDs in WorkGroup
+              namedQueries = athena_client.list_named_queries(
+                WorkGroup=workGroupName)['NamedQueryIds']
+              #Get all Named Queries
+              for queryId in namedQueries:
+                queryResults = athena_client.get_named_query(
+                      NamedQueryId=queryId
+                  )['NamedQuery']
+                print (queryResults)
+                if queryResults['Name'] != 'waf_detailed':
+                  outputLocation = s3BasePath + queryResults['Name'].split('-')[-1] + '/'
+                  if transformQuery:
+                    queryString = "CREATE OR REPLACE VIEW " + '"' + database + '".' + queryResults['Name'].replace('-','_') + " AS " + queryResults['QueryString']
+                  else:
+                    queryString = queryResults['QueryString']
+                  print ("queryString")
+                  print (queryString)
+                  try:
+                    r = athena_client.start_query_execution(
+                        QueryString=queryString,
+                        ResultConfiguration={
+                            'OutputLocation': outputLocation,
+                            'EncryptionConfiguration': {
+                                'EncryptionOption': 'SSE_S3',
+                            }
+                        },
+                        WorkGroup=workGroupName
+                    )
+                    executionIdList.append(r['QueryExecutionId'])
+                  except botocore.exceptions.ClientError as error:
+                    print (error.response)
+                    cfnrespond(event, context, "FAILED", {}, "")
+                    return ()
+              print (executionIdList)
+              if wait_for_queries_to_finish(executionIdList) != []:
+                cfnrespond(event, context, "FAILED", responseData, "CreateViewQueriesFailed")
+                return ("QueriesFailed")
+              else:
+                cfnrespond(event, context, "SUCCESS", responseData, "CreateViewsSuccessful")
+  AthenaNamedQueryIPDetailed:
+    Type: AWS::Athena::NamedQuery
+    Properties:
+      Database: !Ref "GlueDatabaseWAFLogs"
+      Description: Detailed and Formatted Core RBR Data
+      Name: "waf_detailed"
+      WorkGroup: !Ref "AthenaWorkGroup"
+      QueryString: !Sub |
+                        SELECT
+                          tz_window
+                        , sourceip
+                        , COALESCE(NULLIF(args, ''), args) args
+                        , COALESCE(NULLIF(httpSourceName, ''), httpSourceName) httpSourceName
+                        , country
+                        , uri
+                        , labels
+                        , accountId
+                        , webACLName
+                        , method
+                        , requestId
+                        , ntRules
+                        , region
+                        , scope
+                        , terminatingRuleId
+                        , action
+                        , domainName
+                        , userAgent
+                        , datehour
+                        FROM
+                          (
+                           SELECT
+                             httprequest.clientip sourceip
+                           , httprequest.country country
+                           , httprequest.uri uri
+                           , httprequest.args args
+                           , httprequest.httpMethod method
+                           , httprequest.requestId requestId
+                           , httpSourceName
+                           , transform(filter(httprequest.headers, (x) -> x.name = 'Host'),(x) -> x.value) as domainName
+                           , transform(filter(httprequest.headers, (x) -> x.name = 'User-Agent'),(x) -> x.value) as userAgent
+                           , "split_part"(webaclId, ':', 5) accountId
+                           , "split"("split_part"(webaclId, ':', 6), '/', 4)[4] webACLName
+                           , "split_part"(webaclId, ':', 4) region
+                           , "split"("split_part"(webaclId, ':', 6), '/', 4)[1] scope
+                           , webaclId
+                           , "array_join"("transform"(nonTerminatingMatchingRules, (x) -> x.ruleId), ',') ntRules
+                           , concat("transform"("filter"(labels, (x) -> (x.name LIKE 'awswaf:managed:aws:%')), (x) -> "split"(x.name, 'awswaf:managed:aws:')[2]),
+                                    "transform"("filter"(labels, (x) -> (NOT (x.name LIKE 'awswaf%'))), (x) -> x.name)) as labels
+                           , terminatingRuleId
+                           , "from_unixtime"(("floor"((timestamp / (1000 * 300))) * 300)) tz_window
+                           , action
+                           , datehour
+                           FROM "${GlueDatabaseWAFLogs}"."waf_logs_raw"
+                        )
+  AthenaNamedQueryByURIIP:
+    Type: AWS::Athena::NamedQuery
+    Properties:
+      Database: !Ref "GlueDatabaseWAFLogs"
+      Description: Count by URI then Source IP over time.
+      Name: "URIRate"
+      WorkGroup: !Ref "AthenaWorkGroup"
+      QueryString: !Sub |
+                        SELECT
+                          "count"(sourceip) as count
+                        , tz_window
+                        , sourceip
+                        , uri
+                        FROM
+                          (
+                           SELECT *
+                           FROM "${GlueDatabaseWAFLogs}"."waf_detailed"
+                        )
+                        GROUP BY tz_window, sourceip, uri
+                        ORDER BY tz_window desc, count DESC
+  AthenaNamedQueryByCountry:
+    Type: AWS::Athena::NamedQuery
+    Properties:
+      Database: !Ref "GlueDatabaseWAFLogs"
+      Description: Count by Country then Source IP over time.
+      Name: "CountryRate"
+      WorkGroup: !Ref "AthenaWorkGroup"
+      QueryString: !Sub |
+                        SELECT
+                          "count"(sourceip) as count
+                        , tz_window
+                        , sourceip
+                        , country
+                        FROM
+                          (
+                           SELECT *
+                           FROM "${GlueDatabaseWAFLogs}"."waf_detailed"
+                        )
+                        GROUP BY tz_window, sourceip, country
+                        ORDER BY tz_window desc, count DESC
+  AthenaNamedQueryCoreRuleSet:
+    Type: AWS::Athena::NamedQuery
+    Properties:
+      Database: !Ref "GlueDatabaseWAFLogs"
+      Description: "Identify requets with labels from CoreRuleSet"
+      Name: "CoreRuleSet"
+      WorkGroup: !Ref "AthenaWorkGroup"
+      QueryString: !Sub |
+                        SELECT "domainname",
+                            "useragent",
+                            coreLabels,
+                            sourceip,
+                            uri,
+                            args,
+                            tz_window
+                          FROM (
+                              SELECT sourceip,
+                                uri,
+                                tz_window,
+                                ntRules,
+                                args,
+                                "domainname",
+                                "useragent",
+                                filter (labels, (x)->(x LIKE '%core-rule-set%')) as coreLabels
+                              FROM "${GlueDatabaseWAFLogs}"."waf_detailed"
+                            )
+                          where coreLabels <> array [ ]
+  AthenaNamedQueryIPRep:
+    Type: AWS::Athena::NamedQuery
+    Properties:
+      Database: !Ref "GlueDatabaseWAFLogs"
+      Description: "Identify Top Client IP to specific URI path by IP"
+      Name: "SourceIPReputations"
+      WorkGroup: !Ref "AthenaWorkGroup"
+      QueryString: !Sub |
+                        SELECT "domainname",
+                            "useragent",
+                            repLabel,
+                            sourceip,
+                            uri,
+                            args,
+                            tz_window
+                          FROM (
+                              SELECT sourceip,
+                                uri,
+                                tz_window,
+                                ntRules,
+                                args,
+                                "domainname",
+                                "useragent",
+                                filter (labels, (x)->(x LIKE '%amazon-ip-list%')) as repLabel
+                              FROM "${GlueDatabaseWAFLogs}"."waf_detailed"
+                            )
+                          where repLabel <> array [ ]
+
+  AthenaNamedQueryIPAnon:
+    Type: AWS::Athena::NamedQuery
+    Properties:
+      Database: !Ref "GlueDatabaseWAFLogs"
+      Description: "Identify Top Client IP to specific URI path by IP"
+      Name: "SourceIPAnonymousorHiddenOwner"
+      WorkGroup: !Ref "AthenaWorkGroup"
+      QueryString: !Sub |
+                        SELECT "domainname",
+                            "useragent",
+                            annonLabel,
+                            sourceip,
+                            uri,
+                            args,
+                            tz_window
+                          FROM (
+                              SELECT sourceip,
+                                uri,
+                                tz_window,
+                                ntRules,
+                                args,
+                                "domainname",
+                                "useragent",
+                                filter (labels, (x)->(x LIKE '%anonymous-ip-list%')) as annonLabel
+                              FROM "${GlueDatabaseWAFLogs}"."waf_detailed"
+                            )
+                          where annonLabel <> array [ ]
+
+  AthenaNamedQueryBotControl:
+    Type: AWS::Athena::NamedQuery
+    Properties:
+      Database: !Ref "GlueDatabaseWAFLogs"
+      Description: "Identify Bot Traffic"
+      Name: "BotControlMatch"
+      WorkGroup: !Ref "AthenaWorkGroup"
+      QueryString: !Sub |
+                        select
+                        IF((botSignal = ARRAY[]), null, "split"(botSignal[1], 'bot-control:')[2]) botSignal,
+                        IF((botCategory = ARRAY[]), null, "split"(botCategory[1], 'bot-control:')[2]) botCategory,
+                        IF((botName = ARRAY[]), null, "split"(botName[1], 'bot-control:')[2]) botName,
+                        tz_window,
+                        sourceip,
+                        uri,
+                        domainName,
+                        userAgent,
+                        args
+                        from
+                        (select
+                        filter(botLabels, x -> split(x,':')[2] = 'signal') as botSignal,
+                        filter(botLabels, x -> split(x,':')[3] = 'category') as botCategory,
+                        filter(botLabels, x -> split(x,':')[3] = 'name') as botName,
+                        tz_window,
+                        sourceip,
+                        domainName,
+                        userAgent,
+                        args,                        
+                        uri,
+                        datehour
+                        from
+                        (SELECT sourceip,
+                                tz_window,
+                                domainName,
+                                userAgent,
+                                args,
+                                filter(labels,
+                                x -> x LIKE 'bot-control%') AS botLabels, action, labels, uri, datehour
+                            FROM "${GlueDatabaseWAFLogs}"."waf_detailed"
+                        )
+                        where botLabels <> array[]
+                        )
+  AthenaTableLakeFormationSelectPermissions:
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks:
+            - E3001
+    Condition: CreateLakeFormationPermissions
+    Type: AWS::LakeFormation::PrincipalPermissions
+    DependsOn: AthenaTableLakeFormationPermissions
+    Properties:
+      Principal:
+        DataLakePrincipalIdentifier: !GetAtt "AthenaQueryLambdaRole.Arn"
+      Resource:
+        Database:
+          CatalogId: !Ref "AWS::AccountId"
+          Name: "oneclickshieldwaf"
+      Permissions:
+        - "CREATE_TABLE"
+        - "ALTER"
+        - "DESCRIBE"
+      PermissionsWithGrantOption:
+        - "CREATE_TABLE"
+        - "ALTER"
+        - "DESCRIBE"
+
+  AthenaTableLakeFormationPermissions:
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks:
+            - E3001
+    Condition: CreateLakeFormationPermissions
+    Type: AWS::LakeFormation::PrincipalPermissions
+    DependsOn: AthenaQueryLambdaPolicy
+    Properties:
+      Principal:
+        DataLakePrincipalIdentifier: !GetAtt "AthenaQueryLambdaRole.Arn"
+      Resource:
+        Table:
+          CatalogId: !Ref "AWS::AccountId"
+          DatabaseName: "oneclickshieldwaf"
+          Name: "waf_logs_raw"
+      Permissions:
+        - "SELECT"
+      PermissionsWithGrantOption:
+        - "SELECT"
+
+Outputs:
+  WAFLogS3BucketName:
+    Value: !Ref "WafLogsS3Bucket"
+  WAFLogKMSKeyArn:
+    Value: !GetAtt "KMSKeyWAFLog.Arn"
+  WAFDeliveryRoleArn:
+    Value: !GetAtt "WAFDeliveryRole.Arn"
+  

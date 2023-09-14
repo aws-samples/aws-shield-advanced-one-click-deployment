@@ -1,0 +1,395 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: "AWS Shield Advanced Subscription"
+        Parameters:
+          - AcknowledgeServiceTermsPricing
+          - AcknowledgeServiceTermsDTO
+          - AcknowledgeServiceTermsCommitment
+          - AcknowledgeServiceTermsAutoRenew
+          - AcknowledgeNoUnsubscribe
+      -
+        Label:
+          default: "AWS Shield Advanced Proactive Engagement"
+        Parameters:
+          - EnabledProactiveEngagement
+          - EmergencyContactEmail1
+          - EmergencyContactPhone1
+          - EmergencyContactNote1
+          - EmergencyContactEmail2
+          - EmergencyContactPhone2
+          - EmergencyContactNote2
+          - EmergencyContactEmail3
+          - EmergencyContactPhone3
+          - EmergencyContactNote3
+          - EmergencyContactEmail4
+          - EmergencyContactPhone4
+          - EmergencyContactNote4
+          - EmergencyContactEmail5
+          - EmergencyContactPhone5
+          - EmergencyContactNote5
+      -
+        Label:
+          default: "AWS Shield Advanced SRT Access"
+        Parameters:
+          - EnableSRTAccess
+          - SRTAccessRoleName
+          - SRTAccessRoleAction
+          - SRTBuckets
+
+Parameters:
+  AcknowledgeServiceTermsPricing:
+    Type: String
+    Default: "False"
+    Description: Shield Advanced Service Term | Pricing | $3000 / month subscription fee for a consolidated billing family
+    AllowedValues:
+      - "True"
+      - "False"
+  AcknowledgeServiceTermsDTO:
+    Type: String
+    Default: "False"
+    Description: Shield Advanced Service Term | Pricing | Data transfer out usage fees for all protected resources.
+    AllowedValues:
+      - "True"
+      - "False"
+  AcknowledgeServiceTermsCommitment:
+    Type: String
+    Default: "False"
+    Description: Shield Advanced Term | Commitment | I am committing to a 12 month subscription.
+    AllowedValues:
+      - "True"
+      - "False"
+  AcknowledgeServiceTermsAutoRenew:
+    Type: String
+    Default: "False"
+    Description: Shield Advanced Term | Auto renewal | Subscription will be auto-renewed after 12 months. However, I can opt out of renewal 30 days prior to the renewal date.
+    AllowedValues:
+      - "True"
+      - "False"
+  AcknowledgeNoUnsubscribe:
+    Type: String
+    Default: "False"
+    Description:  Shield Advanced does not un-subscribe on delete | Shield Advanced does not un-subscribe if you delete this stack/this resource.
+    AllowedValues:
+      - "True"
+      - "False"
+  EmergencyContactEmail1:
+    Type: String
+    Default: <na>
+    AllowedPattern: ^\S+@\S+\.\S+$|\<na\>
+  EmergencyContactEmail2:
+    Type: String
+    Default: <na>
+    AllowedPattern: ^\S+@\S+\.\S+$|\<na\>
+  EmergencyContactEmail3:
+    Type: String
+    Default: <na>
+    AllowedPattern: ^\S+@\S+\.\S+$|\<na\>
+  EmergencyContactEmail4:
+    Type: String
+    Default: <na>
+    AllowedPattern: ^\S+@\S+\.\S+$|\<na\>
+  EmergencyContactEmail5:
+    Type: String
+    Default: <na>
+    AllowedPattern: ^\S+@\S+\.\S+$|\<na\>
+  EmergencyContactPhone1:
+    Type: String
+    Default: <na>
+    AllowedPattern: ^\+[0-9]{11}|\<na\>
+  EmergencyContactPhone2:
+    Type: String
+    Default: <na>
+    AllowedPattern: ^\+[0-9]{11}|\<na\>
+  EmergencyContactPhone3:
+    Type: String
+    Default: <na>
+    AllowedPattern: ^\+[0-9]{11}|\<na\>
+  EmergencyContactPhone4:
+    Type: String
+    Default: <na>
+    AllowedPattern: ^\+[0-9]{11}|\<na\>
+  EmergencyContactPhone5:
+    Type: String
+    Default: <na>
+    AllowedPattern: ^\+[0-9]{11}|\<na\>
+  EmergencyContactNote1:
+    Type: String
+    Default: <na>
+    AllowedPattern: ^[\w\s\.\-,:/()+@]*$|\<na\>
+  EmergencyContactNote2:
+    Type: String
+    Default: <na>
+    AllowedPattern: ^[\w\s\.\-,:/()+@]*$|\<na\>
+  EmergencyContactNote3:
+    Type: String
+    Default: <na>
+    AllowedPattern: ^[\w\s\.\-,:/()+@]*$|\<na\>
+  EmergencyContactNote4:
+    Type: String
+    Default: <na>
+    AllowedPattern: ^[\w\s\.\-,:/()+@]*$|\<na\>
+  EmergencyContactNote5:
+    Type: String
+    Default: <na>
+    AllowedPattern: ^[\w\s\.\-,:/()+@]*$|\<na\>
+  EnabledProactiveEngagement:
+    Type: String
+    Default: "False"
+    Description: Enable Proactive Engagement.  Note you must also configure emergency contact(s) and health checks for protected resources for this feature to be effective
+    AllowedValues:
+      - "True"
+      - "False"
+  SRTBuckets:
+    Type: CommaDelimitedList
+    Default: <na>
+  SRTAccessRoleName:
+    Type: String
+    Default: <Generated>
+  SRTAccessRoleAction:
+    Type: String
+    Default: "CreateRole"
+    AllowedValues:
+    - "UseExisting"
+    - "CreateRole"
+  EnableSRTAccess:
+    Type: String
+    Default: "False"
+    AllowedValues:
+      - "True"
+      - "False"
+Conditions:
+    FirstEmergencyContact: !Not [ !Equals [!Ref EmergencyContactEmail1 , "<na>"]]
+    SecondEmergencyContact: !Not [ !Equals [!Ref EmergencyContactEmail2 , "<na>"]]
+    ThirdEmergencyContact: !Not [ !Equals [!Ref EmergencyContactEmail3 , "<na>"]]
+    FourthEmergencyContact: !Not [ !Equals [!Ref EmergencyContactEmail4 , "<na>"]]
+    FifthEmergencyContact: !Not [ !Equals [!Ref EmergencyContactEmail5 , "<na>"]]
+    FirstEmergencyContactNote: !Not [ !Equals [!Ref EmergencyContactNote1 , "<na>"]]
+    SecondEmergencyContactNote: !Not [ !Equals [!Ref EmergencyContactNote2 , "<na>"]]
+    ThirdEmergencyContactNote: !Not [ !Equals [!Ref EmergencyContactNote3 , "<na>"]]
+    FourthEmergencyContactNote: !Not [ !Equals [!Ref EmergencyContactNote4 , "<na>"]]
+    FifthEmergencyContactNote: !Not [ !Equals [!Ref EmergencyContactNote5 , "<na>"]]
+    EnableSRTAccessCondition: !Equals [!Ref "EnableSRTAccess", "True"]
+    SRTCreateRoleCondition: !Equals [!Ref "SRTAccessRoleAction", "CreateRole"]
+    SRTBucketsCondition: !Not [!Equals [ !Join [",",!Ref "SRTBuckets"], "<na>" ] ]
+    ProactiveEngagementCondition: !Equals [ !Ref "EnabledProactiveEngagement", "True"]
+    GenerateSRTRoleNameFlag: !Equals [!Ref SRTAccessRoleName, "<Generated>" ]
+    AcceptedShieldTerms: !And
+    - Fn::Equals:
+      - "True"
+      - !Ref AcknowledgeServiceTermsPricing
+    - Fn::Equals:
+      - "True"
+      - !Ref AcknowledgeServiceTermsDTO
+    - Fn::Equals:
+      - "True"
+      - !Ref AcknowledgeServiceTermsCommitment
+    - Fn::Equals:
+      - "True"
+      - !Ref AcknowledgeServiceTermsAutoRenew
+    - Fn::Equals:
+      - "True"
+      - !Ref AcknowledgeNoUnsubscribe
+    
+
+Resources:
+  ConfigureShieldLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+  ConfigureShieldLambdaPolicy:
+    Type: 'AWS::IAM::Policy'
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W12
+            reason: "Wildcard IAM policy required, APIs do not support resource scoping"
+          - id: W58
+            reason: "CFN Nag checks for managed policy, permissions granted inline"
+    Properties:
+      PolicyName: ConfigureShieldLambdaPolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - "logs:CreateLogGroup"
+              - "logs:CreateLogStream"
+              - "logs:PutLogEvents"
+            Resource: "arn:aws:logs:*:*:*"
+          - Sid: ShieldSubscription
+            Effect: Allow
+            Action:
+              - shield:CreateSubscription
+              - shield:UpdateSubscription
+              - "xray:PutTraceSegments"
+              - "xray:PutTelemetryRecords"
+            Resource: "*"
+      Roles:
+        - !Ref ConfigureShieldLambdaRole
+  SubscribeShieldAdvanced:
+    Condition: AcceptedShieldTerms
+    DependsOn: ConfigureShieldLambdaPolicy
+    Type: Custom::SubscribeShieldAdvanced
+    Properties:
+      ServiceToken: !GetAtt ConfigureShieldLambda.Arn
+  ConfigureShieldLambda:
+    Type: AWS::Lambda::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: "Permissions granted, CFN_Nag not parsing correctly?"
+          - id: W89
+            reason: "Not applicable for use case"
+          - id: W92
+            reason: "Not applicable for use case"
+    Properties:
+      TracingConfig:
+        Mode: Active
+      Runtime: python3.9
+      Timeout: 15
+      Role: !GetAtt ConfigureShieldLambdaRole.Arn
+      Handler: index.lambda_handler
+      Code:
+        ZipFile: |
+            import boto3
+            import botocore
+            try:
+              import cfnresponse
+            except:
+              print ("no cfnresponse module")
+            import logging
+
+            logger = logging.getLogger('hc')
+            logger.setLevel('DEBUG')
+
+            shield_client = boto3.client('shield')
+
+            def lambda_handler(event, context):
+                logger.debug(event)
+                responseData = {}
+                if "RequestType" in event:
+                    if event['RequestType'] in ['Create','Update']:
+                        try:
+                            logger.debug("Start Create Subscription")
+                            shield_client.create_subscription()
+                            logger.info ("Shield Enabled!")
+                            responseData['Message'] = "Subscription Created"
+                            cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData, "SubscriptionCreated")
+                            return ()
+                        except botocore.exceptions.ClientError as error:
+                            if error.response['Error']['Code'] == 'ResourceAlreadyExistsException':
+                                logger.info ("Subscription already active")
+                                responseData['Message'] = "Already Subscribed to Shield Advanced"
+                                cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData, "AlreadySubscribedOk")
+                                return
+                            else:
+                                logger.error(error.response['Error'])
+                                responseData['Message'] = error.response['Error']
+                                cfnresponse.send(event, context, cfnresponse.FAILED, responseData, "SubscribeFailed")
+                                return ()
+                    else:
+                        responseData['Message'] = "CFN Delete, no action taken"
+                        cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData, "CFNDeleteGracefulContinue")
+                        return()
+  ProactiveEngagement:
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks:
+            - E3005
+            - E3001
+    DeletionPolicy: Delete
+    DependsOn: SubscribeShieldAdvanced
+    Condition: ProactiveEngagementCondition
+    Type: AWS::Shield::ProactiveEngagement
+    Properties:
+      ProactiveEngagementStatus: ENABLED
+      EmergencyContactList:
+        !If
+        - FirstEmergencyContact
+        -
+          - !If
+              - FirstEmergencyContact
+              - EmailAddress: !Ref "EmergencyContactEmail1"
+                ContactNotes: !If [FirstEmergencyContactNote, !Ref "EmergencyContactNote1", !Ref "AWS::NoValue"]
+                PhoneNumber: !Ref "EmergencyContactPhone1"
+              - !Ref "AWS::NoValue"
+          - !If
+              - SecondEmergencyContact
+              - EmailAddress: !Ref "EmergencyContactEmail2"
+                ContactNotes: !If [SecondEmergencyContactNote, !Ref "EmergencyContactNote2", !Ref "AWS::NoValue"]
+                PhoneNumber: !Ref "EmergencyContactPhone2"
+              - !Ref "AWS::NoValue"
+          - !If
+              - ThirdEmergencyContact
+              - EmailAddress: !Ref "EmergencyContactEmail3"
+                ContactNotes: !If [ThirdEmergencyContactNote, !Ref "EmergencyContactNote3", !Ref "AWS::NoValue"]
+                PhoneNumber: !Ref "EmergencyContactPhone3"
+              - !Ref "AWS::NoValue"
+          - !If
+              - FourthEmergencyContact
+              - EmailAddress: !Ref "EmergencyContactEmail4"
+                ContactNotes: !If [FourthEmergencyContactNote, !Ref "EmergencyContactNote4", !Ref "AWS::NoValue"]
+                PhoneNumber: !Ref "EmergencyContactPhone4"
+              - !Ref "AWS::NoValue"
+          - !If
+              - FifthEmergencyContact
+              - EmailAddress: !Ref "EmergencyContactEmail5"
+                ContactNotes: !If [FifthEmergencyContactNote, !Ref "EmergencyContactNote5", !Ref "AWS::NoValue"]
+                PhoneNumber: !Ref "EmergencyContactPhone5"
+              - !Ref "AWS::NoValue"
+        - !Ref "AWS::NoValue"
+  SRTAccess:
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks:
+            - E3001
+            - E3005
+            - W1001
+    Condition: EnableSRTAccessCondition
+    DependsOn: SubscribeShieldAdvanced
+    Type: AWS::Shield::DRTAccess
+    Properties:
+      LogBucketList:
+        !If
+        - SRTBucketsCondition
+        - !Ref "SRTBuckets"
+        - !Ref "AWS::NoValue"
+      RoleArn: !If [ GenerateSRTRoleNameFlag, !GetAtt "SRTAccessRole.Arn", !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${SRTAccessRoleName}" ]
+  SRTAccessRole:
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: End user can elect to name role, default will allow CFN to set name
+    Condition: SRTCreateRoleCondition
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !If [GenerateSRTRoleNameFlag, !Ref "AWS::NoValue", !Ref "SRTAccessRoleName"]
+      ManagedPolicyArns:
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/service-role/AWSShieldDRTAccessPolicy'
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - 'drt.shield.amazonaws.com'
+            Action:
+              - 'sts:AssumeRole'

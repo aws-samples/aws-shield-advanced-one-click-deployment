@@ -1,0 +1,361 @@
+#This example adds BotControl as a post process rule.  It is also configured with several rules with an override action of COUNT
+---
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  TopStackName:
+    Type: String
+  ScopeDetails:
+    Type: String
+    Default: <na>
+  IncludeExcludeScope:
+    Type: String
+    Default: Include
+    AllowedValues:
+      - Include
+      - Exclude
+  ScopeType:
+    Type: String
+    Description: "Should Firewall Manager Policies be scoped to the entire org (root) or a specific list of OUs (OU)"
+    Default: Org
+    AllowedValues:
+      - Org
+      - OU
+      - Accounts
+  ResourceTagUsage:
+    Type: String
+    Default: Include
+    Description: Include will scope to only include when ResourceTags match, Exclude will exclude when target resource tags match ResourceTags
+    AllowedValues:
+      - Include
+      - Exclude
+  WAFv2ProtectRegionalResourceTypes:
+    Type: String
+    Default: AWS::ApiGateway::Stage,AWS::ElasticLoadBalancingV2::LoadBalancer
+    AllowedValues:
+      - AWS::ApiGateway::Stage,AWS::ElasticLoadBalancingV2::LoadBalancer
+      - AWS::ElasticLoadBalancingV2::LoadBalancer
+      - AWS::ApiGateway::Stage
+      - <na>
+  WAFv2ProtectCloudFront:
+    Type: String
+    Default: <na>
+    AllowedValues:
+      - AWS::CloudFront::Distribution
+      - <na>
+  WAFv2AutoRemediate:
+    Type: String
+    Description: "Should in scope AWS resource types that support AWS WAF automatically be remediated?"
+    AllowedValues:
+      - "Yes | Replace existing exsiting WebACL"
+      - "Yes | If no current WebACL"
+      - "No"
+  ScopeTagName1:
+    Type: String
+    Default: <na>
+  ScopeTagName2:
+    Type: String
+    Default: <na>
+  ScopeTagName3:
+    Type: String
+    Default: <na>
+  ScopeTagValue1:
+    Type: String
+    Default: <na>
+  ScopeTagValue2:
+    Type: String
+    Default: <na>
+  ScopeTagValue3:
+    Type: String
+    Default: <na>
+  RateLimitValue:
+    Type: String
+    Description: AWS WAF rate limits use the previous 5 minutes to determine if an IP has exceeded the defined limit.
+    Default: 10000
+  RateLimitAction:
+    Type: String
+    Default: Block
+    AllowedValues:
+    - Block
+    - Count
+  AnonymousIPAMRAction:
+    Type: String
+    Description: The Anonymous IP list rule group contains rules to block requests from services that permit the obfuscation of viewer identity. These include requests from VPNs, proxies, Tor nodes, and hosting providers. This rule group is useful if you want to filter out viewers that might be trying to hide their identity from your application. 
+    Default: Block
+    AllowedValues:
+    - Block
+    - Count
+  IPReputationAMRAction:
+    Type: String
+    Description: The Amazon IP reputation list rule group contains rules that are based on Amazon internal threat intelligence. This is useful if you would like to block IP addresses typically associated with bots or other threats. Blocking these IP addresses can help mitigate bots and reduce the risk of a malicious actor discovering a vulnerable application.
+    Default: Block
+    AllowedValues:
+    - Block
+    - Count
+  CoreRuleSetAMRAction:
+    Type: String
+    Description: The Core rule set (CRS) rule group contains rules that are generally applicable to web applications. This provides protection against exploitation of a wide range of vulnerabilities, including some of the high risk and commonly occurring vulnerabilities described in OWASP publications such as OWASP Top 10
+    Default: Count
+    AllowedValues:
+    - Block
+    - Count
+  KnownBadInputsAMRAction:
+    Type: String
+    Description: The Known bad inputs rule group contains rules to block request patterns that are known to be invalid and are associated with exploitation or discovery of vulnerabilities. This can help reduce the risk of a malicious actor discovering a vulnerable application.
+    Default: Count
+    AllowedValues:
+    - Block
+    - Count
+  WAFLogS3BucketName:
+    Type: String
+  WAFDeliveryRoleArn:
+    Type: String
+  WAFLogKMSKeyArn:
+    Type: String
+Conditions:
+    ScopeTagName1Flag: !Not [!Equals [!Ref ScopeTagName1, "<na>"]]
+    ScopeTagName2Flag: !Not [!Equals [!Ref ScopeTagName2, "<na>"]]
+    ScopeTagName3Flag: !Not [!Equals [!Ref ScopeTagName3, "<na>"]]
+    ScopeTagValue1Flag: !Not [!Equals [!Ref ScopeTagValue1, "<na>"]]
+    ScopeTagValue2Flag: !Not [!Equals [!Ref ScopeTagValue2, "<na>"]]
+    ScopeTagValue3Flag: !Not [!Equals [!Ref ScopeTagValue3, "<na>"]]
+    AutoRemediateForceFlag: !Equals [!Ref WAFv2AutoRemediate, "Yes | Replace existing exsiting WebACL"]
+    AutoRemediateFlag: !Or
+      - !Equals [!Ref WAFv2AutoRemediate, "Yes | If no current WebACL"]
+      - !Equals [!Ref WAFv2AutoRemediate, "Yes | Replace existing exsiting WebACL"]
+    OUScopeFlag: !Equals [!Ref ScopeType, "OU"]
+    AccountScopeFlag: !Equals [!Ref ScopeType, "Accounts"]
+    ExcludeResourceTagFlag: !Equals [!Ref ResourceTagUsage, "Exclude"]
+    IncludeScopeFlag: !Equals [!Ref IncludeExcludeScope, "Include"]
+    ExcludeScopeFlag: !Equals [!Ref IncludeExcludeScope, "Exclude"]
+    CreateRegionalPolicyFlag: !Not [ !Equals [ !Ref WAFv2ProtectRegionalResourceTypes, '<na>' ] ]
+    CreateCloudFrontPolicyFlag: !And [ !Not [ !Equals [!Ref WAFv2ProtectCloudFront, "<na>" ] ] , !Equals [ !Ref AWS::Region, 'us-east-1' ] ]
+    RateLimitActionFlag: !Equals [!Ref RateLimitAction,'Block']
+    AnonymousIPAMRActionFlag: !Equals [!Ref AnonymousIPAMRAction,'Block']
+    IPReputationAMRActionFlag: !Equals [!Ref IPReputationAMRAction,'Block']
+    CoreRuleSetAMRActionFlag: !Equals [!Ref CoreRuleSetAMRAction,'Block']
+    KnownBadInputsAMRActionFlag: !Equals [!Ref KnownBadInputsAMRAction,'Block']
+
+Resources:
+  RegionalWAFv2SecurityPolicy:
+    Condition: CreateRegionalPolicyFlag
+    Type: AWS::FMS::Policy
+    Properties:
+      PolicyName: !Sub OneClickShieldRegional-${AWS::StackName}
+      ResourceType: ResourceTypeList
+      ResourceTypeList: !Split [",", !Ref WAFv2ProtectRegionalResourceTypes]
+      ExcludeResourceTags: !If [ExcludeResourceTagFlag, True, False]
+      IncludeMap:
+        ORGUNIT:
+          !If [IncludeScopeFlag, !If [OUScopeFlag, !Split [",", !Ref ScopeDetails], !Ref "AWS::NoValue"], !Ref "AWS::NoValue"]
+        ACCOUNT:
+          !If [IncludeScopeFlag, !If [AccountScopeFlag, !Split [",", !Ref ScopeDetails] , !Ref "AWS::NoValue"], !Ref "AWS::NoValue"]
+      ExcludeMap:
+        ORGUNIT:
+          !If [ExcludeScopeFlag, !If [OUScopeFlag, !Split [",", !Ref ScopeDetails], !Ref "AWS::NoValue"], !Ref "AWS::NoValue"]
+        ACCOUNT:
+          !If [ExcludeScopeFlag, !If [AccountScopeFlag,  !Split [",", !Ref ScopeDetails], !Ref "AWS::NoValue"], !Ref "AWS::NoValue"]
+      RemediationEnabled: !If [AutoRemediateFlag, True, False]
+      DeleteAllPolicyResources: False
+      ResourceTags:
+        !If
+        - ScopeTagName1Flag
+        -
+          - !If
+            - ScopeTagName1Flag
+            - Key:  !Ref ScopeTagName1
+              Value: !If [ScopeTagName1Flag, !Ref ScopeTagValue1, ""]
+            - !Ref "AWS::NoValue"
+          - !If
+            - ScopeTagName2Flag
+            - Key:  !Ref ScopeTagName2
+              Value: !If [ScopeTagName2Flag, !Ref ScopeTagValue2, ""]
+            - !Ref "AWS::NoValue"
+          - !If
+            - ScopeTagName3Flag
+            - Key:  !Ref ScopeTagName3
+              Value: !If [ScopeTagName3Flag, !Ref ScopeTagValue3, ""]
+            - !Ref "AWS::NoValue"
+        - !Ref "AWS::NoValue"
+      SecurityServicePolicyData:
+        Type: WAFV2
+        ManagedServiceData: !Sub
+          - '{"type": "WAFV2", "preProcessRuleGroups":[{"ruleGroupArn": "${RateLimitRGArn}", "overrideAction": {"type": "NONE"}, "ruleGroupType":"RuleGroup", "excludeRules": [], "sampledRequestsEnabled": true}, {"managedRuleGroupIdentifier": {"vendorName": "AWS", "managedRuleGroupName":"AWSManagedRulesAmazonIpReputationList"}, "overrideAction": {"type": "${IPReputationActionValue}"},"ruleGroupType": "ManagedRuleGroup", "excludeRules":[], "sampledRequestsEnabled": true}, {"managedRuleGroupIdentifier": {"vendorName": "AWS", "managedRuleGroupName": "AWSManagedRulesAnonymousIpList"},"overrideAction": {"type": "${AnonymousIPActionValue}"}, "ruleGroupType": "ManagedRuleGroup", "excludeRules": [], "sampledRequestsEnabled": true},{"managedRuleGroupIdentifier": {"vendorName": "AWS", "managedRuleGroupName": "AWSManagedRulesKnownBadInputsRuleSet"}, "overrideAction": {"type": "${KnownBadInputsActionValue}"}, "ruleGroupType": "ManagedRuleGroup", "excludeRules": [], "sampledRequestsEnabled": true},{"managedRuleGroupIdentifier": {"vendorName": "AWS", "managedRuleGroupName": "AWSManagedRulesCommonRuleSet"}, "overrideAction": {"type": "${CoreRuleSetActionValue}"}, "ruleGroupType": "ManagedRuleGroup", "excludeRules": [], "sampledRequestsEnabled": true}],"postProcessRuleGroups": [{"ruleGroupArn":null,"overrideAction":{"type":"NONE"},"managedRuleGroupIdentifier":{"versionEnabled":null,"version":null,"vendorName":"AWS","managedRuleGroupName":"AWSManagedRulesBotControlRuleSet","managedRuleGroupConfigs":[{"awsmanagedRulesBotControlRuleSet":{"inspectionLevel":"COMMON"}}]},"ruleGroupType":"ManagedRuleGroup","excludeRules":[],"sampledRequestsEnabled":true,"ruleActionOverrides":[{"name":"CategoryAdvertising","actionToUse":{"count":{}}},{"name":"CategoryLinkChecker","actionToUse":{"count":{}}},{"name":"CategorySearchEngine","actionToUse":{"count":{}}}]}], "defaultAction": {"type": "ALLOW"}, "overrideCustomerWebACLAssociation": ${AutoRemediateForceValue}, "sampledRequestsEnabledForDefaultActions": true,"loggingConfiguration": {"redactedFields": [],"logDestinationConfigs": ["${FirehoseArn}"]}}'
+          - RateLimitRGArn: !GetAtt RegionalRateLimitRuleGroup.Arn
+            IPReputationActionValue: !If [IPReputationAMRActionFlag, 'NONE','COUNT']
+            AnonymousIPActionValue: !If [AnonymousIPAMRActionFlag, 'NONE','COUNT']
+            KnownBadInputsActionValue: !If [KnownBadInputsAMRActionFlag, 'NONE','COUNT']
+            CoreRuleSetActionValue: !If [CoreRuleSetAMRActionFlag, 'NONE','COUNT']
+            FirehoseArn: !GetAtt "WAFDeliverystream.Arn"
+            AutoRemediateForceValue: !If [AutoRemediateForceFlag,True,False]
+  CloudFrontWAFv2SecurityPolicy:
+    Condition: CreateCloudFrontPolicyFlag
+    Type: AWS::FMS::Policy
+    Properties:
+      PolicyName: !Sub OneClickShieldGlobal-${AWS::StackName}
+      ResourceType: AWS::CloudFront::Distribution
+      ExcludeResourceTags: !If [ExcludeResourceTagFlag, True, False]
+      IncludeMap:
+        ORGUNIT:
+          !If [IncludeScopeFlag, !If [OUScopeFlag, !Split [",", !Ref ScopeDetails], !Ref "AWS::NoValue"], !Ref "AWS::NoValue"]
+        ACCOUNT:
+          !If [IncludeScopeFlag, !If [AccountScopeFlag, !Split [",", !Ref ScopeDetails] , !Ref "AWS::NoValue"], !Ref "AWS::NoValue"]
+      ExcludeMap:
+        ORGUNIT:
+          !If [ExcludeScopeFlag, !If [OUScopeFlag, !Split [",", !Ref ScopeDetails], !Ref "AWS::NoValue"], !Ref "AWS::NoValue"]
+        ACCOUNT:
+          !If [ExcludeScopeFlag, !If [AccountScopeFlag,  !Split [",", !Ref ScopeDetails], !Ref "AWS::NoValue"], !Ref "AWS::NoValue"]
+      RemediationEnabled: !If [AutoRemediateFlag, true, false]
+      DeleteAllPolicyResources: false
+      ResourceTags:
+        !If
+        - ScopeTagName1Flag
+        -
+          - !If
+            - ScopeTagName1Flag
+            - Key:  !Ref ScopeTagName1
+              Value: !If [ScopeTagValue1Flag, !Ref ScopeTagValue1, ""]
+            - !Ref "AWS::NoValue"
+          - !If
+            - ScopeTagName2Flag
+            - Key:  !Ref ScopeTagName2
+              Value: !If [ScopeTagValue2Flag, !Ref ScopeTagValue2, ""]
+            - !Ref "AWS::NoValue"
+          - !If
+            - ScopeTagName3Flag
+            - Key:  !Ref ScopeTagName3
+              Value: !If [ScopeTagValue3Flag, !Ref ScopeTagValue3, ""]
+            - !Ref "AWS::NoValue"
+        - !Ref "AWS::NoValue"
+      SecurityServicePolicyData:
+        Type: WAFV2
+        ManagedServiceData: !Sub
+          - '{"type": "WAFV2", "preProcessRuleGroups":[{"ruleGroupArn": "${RateLimitRGArn}", "overrideAction": {"type": "NONE"}, "ruleGroupType":"RuleGroup", "excludeRules": [], "sampledRequestsEnabled": true}, {"managedRuleGroupIdentifier": {"vendorName": "AWS", "managedRuleGroupName":"AWSManagedRulesAmazonIpReputationList"}, "overrideAction": {"type": "${IPReputationActionValue}"},"ruleGroupType": "ManagedRuleGroup", "excludeRules":[], "sampledRequestsEnabled": true}, {"managedRuleGroupIdentifier": {"vendorName": "AWS", "managedRuleGroupName": "AWSManagedRulesAnonymousIpList"},"overrideAction": {"type": "${AnonymousIPActionValue}"}, "ruleGroupType": "ManagedRuleGroup", "excludeRules": [], "sampledRequestsEnabled": true},{"managedRuleGroupIdentifier": {"vendorName": "AWS", "managedRuleGroupName": "AWSManagedRulesKnownBadInputsRuleSet"}, "overrideAction": {"type": "${KnownBadInputsActionValue}"}, "ruleGroupType": "ManagedRuleGroup", "excludeRules": [], "sampledRequestsEnabled": true},{"managedRuleGroupIdentifier": {"vendorName": "AWS", "managedRuleGroupName": "AWSManagedRulesCommonRuleSet"}, "overrideAction": {"type": "${CoreRuleSetActionValue}"}, "ruleGroupType": "ManagedRuleGroup", "excludeRules": [], "sampledRequestsEnabled": true}],"postProcessRuleGroups": [{"ruleGroupArn":null,"overrideAction":{"type":"NONE"},"managedRuleGroupIdentifier":{"versionEnabled":null,"version":null,"vendorName":"AWS","managedRuleGroupName":"AWSManagedRulesBotControlRuleSet","managedRuleGroupConfigs":[{"awsmanagedRulesBotControlRuleSet":{"inspectionLevel":"COMMON"}}]},"ruleGroupType":"ManagedRuleGroup","excludeRules":[],"sampledRequestsEnabled":true,"ruleActionOverrides":[{"name":"CategoryAdvertising","actionToUse":{"count":{}}},{"name":"CategoryLinkChecker","actionToUse":{"count":{}}},{"name":"CategorySearchEngine","actionToUse":{"count":{}}}]}], "defaultAction": {"type": "ALLOW"}, "overrideCustomerWebACLAssociation": ${AutoRemediateForceValue}, "sampledRequestsEnabledForDefaultActions": true,"loggingConfiguration": {"redactedFields": [],"logDestinationConfigs": ["${FirehoseArn}"]}}'
+          - RateLimitRGArn: !GetAtt CloudFrontRateLimitRuleGroup.Arn
+            IPReputationActionValue: !If [IPReputationAMRActionFlag, 'NONE','COUNT']
+            AnonymousIPActionValue: !If [AnonymousIPAMRActionFlag, 'NONE','COUNT']
+            KnownBadInputsActionValue: !If [KnownBadInputsAMRActionFlag, 'NONE','COUNT']
+            CoreRuleSetActionValue: !If [CoreRuleSetAMRActionFlag, 'NONE','COUNT']
+            FirehoseArn: !GetAtt "WAFDeliverystream.Arn"
+            AutoRemediateForceValue: !If [AutoRemediateForceFlag,True,False]
+  RegionalRateLimitRuleGroup:
+    Condition: CreateRegionalPolicyFlag
+    Type: 'AWS::WAFv2::RuleGroup'
+    Properties:
+      Name: !Sub OneClickDeployRuleGroup-${AWS::StackName}
+      Scope: REGIONAL
+      Description: !Sub OneClickDeployRuleGroup-${AWS::StackName}
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+        MetricName: !Sub OneClickDeployRuleGroup-${AWS::StackName}
+      Capacity: 10
+      Rules:
+        - Name: RateLimit
+          Priority: 0
+          Statement:
+            RateBasedStatement:
+              Limit: !Ref RateLimitValue
+              AggregateKeyType: IP
+          Action:
+            Block: !If [RateLimitActionFlag, {},!Ref "AWS::NoValue"]
+            Count: !If [RateLimitActionFlag, !Ref "AWS::NoValue", {}]
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: RateLimit
+  CloudFrontRateLimitRuleGroup:
+    Condition: CreateCloudFrontPolicyFlag
+    Type: 'AWS::WAFv2::RuleGroup'
+    Properties:
+      Name: !Sub OneClickDeployRuleGroup-${AWS::StackName}
+      Scope: CLOUDFRONT
+      Description: !Sub OneClickDeployRuleGroup-${AWS::StackName}
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+        MetricName: !Sub OneClickDeployRuleGroup-${AWS::StackName}
+      Capacity: 10
+      Rules:
+        - Name: RateLimit
+          Priority: 0
+          Statement:
+            RateBasedStatement:
+              Limit: !Ref RateLimitValue
+              AggregateKeyType: IP
+          Action:
+            Block: !If [RateLimitActionFlag, {},!Ref "AWS::NoValue"]
+            Count: !If [RateLimitActionFlag, !Ref "AWS::NoValue", {}]
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: RateLimit
+
+  WAFDeliveryLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/kinesisfirehose/${AWS::StackName}"
+      KmsKeyId: !GetAtt KMSKey.Arn
+      RetentionInDays: 365
+  WAFDeliveryLogStream:
+    DependsOn: WAFDeliveryLogGroup
+    Type: AWS::Logs::LogStream
+    Properties:
+      LogGroupName: !Sub "/aws/kinesisfirehose/${AWS::StackName}"
+      LogStreamName: !Sub "aws-waf-logs-${TopStackName}-${AWS::Region}"
+  WAFDeliverystream:
+    Type: AWS::KinesisFirehose::DeliveryStream
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W88
+            reason: "There is no Delivery Stream, these are from FMS, not applicable"
+    Properties:
+      DeliveryStreamName: !Sub "aws-waf-logs-${TopStackName}-${AWS::Region}"
+      DeliveryStreamEncryptionConfigurationInput:
+        KeyARN: !GetAtt KMSKey.Arn
+        KeyType: CUSTOMER_MANAGED_CMK
+      ExtendedS3DestinationConfiguration:
+        BucketARN: !Sub "arn:aws:s3:::${WAFLogS3BucketName}"
+        CloudWatchLoggingOptions:
+          Enabled: true
+          LogGroupName: !Sub "/aws/kinesisfirehose/${AWS::StackName}"
+          LogStreamName: !Sub "aws-waf-logs-${TopStackName}-${AWS::Region}"
+        BufferingHints:
+          IntervalInSeconds: 60
+          SizeInMBs: 50
+        CompressionFormat: UNCOMPRESSED
+        EncryptionConfiguration:
+          KMSEncryptionConfig:
+            AWSKMSKeyARN: !Ref "WAFLogKMSKeyArn"
+        Prefix: !Sub 'firehose/${AWS::Region}/'
+        RoleARN: !Ref WAFDeliveryRoleArn
+  KMSKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: CloudWatch Log Encryption Key
+      EnableKeyRotation: true
+      PendingWindowInDays: 20
+      KeyPolicy:
+        Version: '2012-10-17'
+        Id: key-default-1
+        Statement:
+        - Sid: Enable IAM User Permissions
+          Effect: Allow
+          Principal:
+            AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+          Action: kms:*
+          Resource: '*'
+        - Sid: Allow administration of the key
+          Effect: Allow
+          Principal:
+            Service: !Sub "logs.${AWS::Region}.amazonaws.com"
+          Action:
+            - kms:Encrypt
+            - kms:Decrypt
+            - kms:ReEncrypt*
+            - kms:GenerateDataKey
+            - kms:Describe*
+          Resource: '*'
+          Condition:
+            ArnEquals:
+              "kms:EncryptionContext:aws:logs:arn": !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/kinesisfirehose/${AWS::StackName}"

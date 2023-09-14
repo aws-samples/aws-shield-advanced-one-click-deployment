@@ -1,0 +1,768 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterLabels:
+      AcknowledgeServiceTermsPricing:
+        default: Acknowledge Service Pricing Terms
+      AcknowledgeServiceTermsDTO:
+        default: Acknowledge Service Data Transfer Out Pricing Terms
+      AcknowledgeServiceTermsCommitment:
+        default: Acknowledge Service 12 Month Commitment Terms
+      AcknowledgeServiceTermsAutoRenew:
+        default: Acknowledge Service Commitment AutoRenews
+      AcknowledgeNoUnsubscribe:
+        default: Acknowledge you will not be unsubscribed if you delete this stack
+      ProtectRegionalResourceTypes:
+        default: What type(s) of regional resources should be Shield protected?
+      ProtectCloudFront:
+        default: What type(s) of global resources should be Shield protected?
+      ShieldAutoRemediate:
+        default: Should resources in scope automatically be Shield protected?
+      EnableSRTAccess:
+        default: Do you want to grant the Shield Response Team (SRT) access to your account?
+      EnabledProactiveEngagement:
+        default: Do you want to enable Proactive Engagement?
+      EmergencyContactEmail1:
+        default: Emergency Contact 1 | E-mail Address | This is required if you enable Proactive Engagement.
+      EmergencyContactPhone1:
+        default: Emergency Contact 1 | Phone Number | This is required if you enable Proactive Engagement.
+      EmergencyContactNote1:
+        default: Emergency Contact 1 | Notes | This is required if you enable Proactive Engagement.
+      EmergencyContactEmail2:
+        default: Emergency Contact 2 | E-mail Address
+      EmergencyContactPhone2:
+        default: Emergency Contact 2 | Phone Number
+      EmergencyContactNote2:
+        default: Emergency Contact 2 | Notes
+      EmergencyContactEmail3:
+        default: Emergency Contact 3 | E-mail Address
+      EmergencyContactPhone3:
+        default: Emergency Contact 3 | Phone Number
+      EmergencyContactNote3:
+        default: Emergency Contact 3 | Notes
+      EmergencyContactEmail4:
+        default: Emergency Contact 4 | E-mail Address
+      EmergencyContactPhone4:
+        default: Emergency Contact 4 | Phone Number
+      EmergencyContactNote4:
+        default: Emergency Contact 4 | Notes
+      EmergencyContactEmail5:
+        default: Emergency Contact 5 | E-mail Address
+      EmergencyContactPhone5:
+        default: Emergency Contact 5 | Phone Number
+      EmergencyContactNote5:
+        default: Emergency Contact 5 | Notes
+      CallAs:
+        default: Service Managed StackSets require an additional flag if deployed from a CloudFormation Delegated Administrator.
+      ScopeType:
+        default: Scope Type for Firewall Manager Security Policies
+      IncludeExcludeScope:
+        default: Is the Scope Details what is in or out of scope? This is not used if scope type is "Org"
+      RateLimitValue:
+        default: Rate limit requests by source IP
+      RateLimitAction:
+        default: What action should the rate based rule take when an IP exceeds the defined limit?
+      AnonymousIPAMRAction:
+        default: Specify the action for Amonymous IP list managed rule group rules
+      IPReputationAMRAction:
+        default: Specify the action for Amazon IP reputation list managed rule group rules
+      CoreRuleSetAMRAction:
+        default: Specify the action for Core rule set (CRS) managed rule group rules
+      KnownBadInputsAMRAction:
+        default: Specify the action for Known bad inputs managed rule group rules
+      WAFv2ProtectRegionalResourceTypes:
+        default: What type(s) of regional resources should have AWS WAF protection
+      WAFv2ProtectCloudFront:
+        default: What type(s) of global resources should have AWS WAF protection
+      ResourceTagUsage:
+        default: If scope tags are specified, are these tags what to include (in scope) or are exclude ( out of scope)
+      FMSAdministratorAccount:
+        default: What is the FMS Administrator/delegated Administrator if not the local account
+      ScopeDetails:
+        default: Scope Details | Root Id or List of OUs or List of Accounts
+      ScopeRegions:
+        default: Specify which region(s) contain resources to protect
+      SRTAccessRoleName:
+        default: If you enable SRT access, specify the IAM role name that SRT can assume.
+      SRTAccessRoleAction:
+        default: If you enable SRT access, you can either create and specify the role name or have CloudFormation create a role for you
+      SRTBuckets:
+        default: Do you want to grant SRT access to any S3 buckets with relevant logs?
+      ShieldScopeTagName1:
+        default: Shield protection tag Name
+      ShieldScopeTagName2:
+        default: Shield protection tag Name
+      ShieldScopeTagName3:
+        default: Shield protection tag Name
+      ShieldScopeTagValue1:
+        default: Shield protection tag Value
+      ShieldScopeTagValue2:
+        default: Shield protection tag Value
+      ShieldScopeTagValue3:
+        default: Shield protection tag Value
+      WAFv2ScopeTagName1:
+        default: WAFv2 protection tag Name
+      WAFv2ScopeTagName2:
+        default: WAFv2 protection tag Name
+      WAFv2ScopeTagName3:
+        default: WAFv2 protection tag Name
+      WAFv2ScopeTagValue1:
+        default: WAFv2 protection tag Value
+      WAFv2ScopeTagValue2:
+        default: WAFv2 protection tag Value
+      WAFv2ScopeTagValue3:
+        default: WAFv2 protection tag Value
+    ParameterGroups:
+      -
+        Label:
+          default: "AWS Shield Advanced Subscription [Mandatory]"
+        Parameters:
+          - AcknowledgeServiceTermsPricing
+          - AcknowledgeServiceTermsDTO
+          - AcknowledgeServiceTermsCommitment
+          - AcknowledgeServiceTermsAutoRenew
+          - AcknowledgeNoUnsubscribe
+      -
+        Label:
+          default: "AWS Shield Advanced Configuration [Mandatory]"
+        Parameters:
+          - EnableSRTAccess
+          - EnabledProactiveEngagement
+          - EmergencyContactEmail1
+          - EmergencyContactPhone1
+          - EmergencyContactNote1
+      - Label:
+          default: "Scope [Mandatory]"
+        Parameters:
+          - ScopeType
+          - ScopeDetails
+          - IncludeExcludeScope
+          - ScopeRegions 
+          - FMSAdministratorAccount          
+          - CallAs
+      - Label:
+          default: "Stack Set Deployment options [Optional]"
+        Parameters:
+          - ProtectRegionalResourceTypes
+          - ProtectCloudFront
+          - WAFv2ProtectRegionalResourceTypes
+          - WAFv2ProtectCloudFront
+          - ShieldAutoRemediate
+          - WAFv2AutoRemediate
+      - Label:
+          default: "AWS WAF v2 Configuration [Optional]"
+        Parameters:
+          - RateLimitValue
+          - RateLimitAction
+          - IPReputationAMRAction
+          - AnonymousIPAMRAction
+          - KnownBadInputsAMRAction
+          - CoreRuleSetAMRAction
+      -
+        Label:
+          default: "AWS Shield Advanced SRT Access [Optional]"
+        Parameters:
+          - SRTAccessRoleName
+          - SRTAccessRoleAction
+          - SRTBuckets
+      -
+        Label:
+          default: "AWS Shield Advanced Proactive Engagement [Optional]"
+        Parameters:
+          - EmergencyContactEmail2
+          - EmergencyContactPhone2
+          - EmergencyContactNote2
+          - EmergencyContactEmail3
+          - EmergencyContactPhone3
+          - EmergencyContactNote3
+          - EmergencyContactEmail4
+          - EmergencyContactPhone4
+          - EmergencyContactNote4
+          - EmergencyContactEmail5
+          - EmergencyContactPhone5
+          - EmergencyContactNote5
+      - Label:
+          default: "Shield Resource Scoping [Optional]"
+        Parameters:
+          - ResourceTagUsage
+          - ShieldScopeTagName1
+          - ShieldScopeTagValue1
+          - ShieldScopeTagName2
+          - ShieldScopeTagValue2
+          - ShieldScopeTagName3
+          - ShieldScopeTagValue3
+      - Label:
+          default: "WAFv2 Resource Scoping [Optional]"
+        Parameters:
+          - WAFv2ScopeTagName1
+          - WAFv2ScopeTagValue1
+          - WAFv2ScopeTagName2
+          - WAFv2ScopeTagValue2
+          - WAFv2ScopeTagName3
+          - WAFv2ScopeTagValue3
+
+Parameters:
+  FMSAdministratorAccount:
+    Type: String
+    Description: AWS Account ID or <Self>
+    Default: <Self>
+  AcknowledgeServiceTermsPricing:
+    Type: String
+    Default: "False"
+    Description: $3000 / month subscription fee for a consolidated billing family
+    AllowedValues:
+      - "True"
+      - "False"
+  AcknowledgeServiceTermsDTO:
+    Type: String
+    Default: "False"
+    Description: Data transfer out usage fees for all protected resources.
+    AllowedValues:
+      - "True"
+      - "False"
+  AcknowledgeServiceTermsCommitment:
+    Type: String
+    Default: "False"
+    Description: I am committing to a 12 month subscription.
+    AllowedValues:
+      - "True"
+      - "False"
+  AcknowledgeServiceTermsAutoRenew:
+    Type: String
+    Default: "False"
+    Description: Subscription will be auto-renewed after 12 months. However, I can opt out of renewal 30 days prior to the renewal date.
+    AllowedValues:
+      - "True"
+      - "False"
+  AcknowledgeNoUnsubscribe:
+    Type: String
+    Default: "False"
+    Description: Shield Advanced does not un-subscribe if you delete this stack/this resource.
+    AllowedValues:
+      - "True"
+      - "False"
+  EmergencyContactEmail1:
+    Type: String
+    Default: <na>
+    Description: e.g. example@amazon.com, or example+soc@amazon.com | This is required if you enable Proactive Engagement.
+    AllowedPattern: ^\S+@\S+\.\S+$|\<na\>
+  EmergencyContactEmail2:
+    Type: String
+    Default: <na>
+    Description: e.g. example@amazon.com, or example+soc@amazon.com
+    AllowedPattern: ^\S+@\S+\.\S+$|\<na\>
+  EmergencyContactEmail3:
+    Type: String
+    Default: <na>
+    Description: e.g. example@amazon.com, or example+soc@amazon.com
+    AllowedPattern: ^\S+@\S+\.\S+$|\<na\>
+  EmergencyContactEmail4:
+    Type: String
+    Default: <na>
+    Description: e.g. example@amazon.com, or example+soc@amazon.com
+    AllowedPattern: ^\S+@\S+\.\S+$|\<na\>
+  EmergencyContactEmail5:
+    Type: String
+    Default: <na>
+    Description: e.g. example@amazon.com, or example+soc@amazon.com
+    AllowedPattern: ^\S+@\S+\.\S+$|\<na\>
+  EmergencyContactPhone1:
+    Type: String
+    Default: <na>
+    Description: e.g. +15555555555 | This is required if you enable Proactive Engagement.
+    AllowedPattern: ^\+[0-9]{11}|\<na\>
+  EmergencyContactPhone2:
+    Type: String
+    Default: <na>
+    Description: e.g. +15555555555
+    AllowedPattern: ^\+[0-9]{11}|\<na\>
+  EmergencyContactPhone3:
+    Type: String
+    Default: <na>
+    Description: e.g. +15555555555
+    AllowedPattern: ^\+[0-9]{11}|\<na\>
+  EmergencyContactPhone4:
+    Type: String
+    Default: <na>
+    Description: e.g. +15555555555
+    AllowedPattern: ^\+[0-9]{11}|\<na\>
+  EmergencyContactPhone5:
+    Type: String
+    Default: <na>
+    Description: e.g. +15555555555
+    AllowedPattern: ^\+[0-9]{11}|\<na\>
+  EmergencyContactNote1:
+    Type: String
+    Default: <na>
+    AllowedPattern: ^[\w\s\.\-,:/()+@]*$|\<na\>
+  EmergencyContactNote2:
+    Type: String
+    Default: <na>
+    AllowedPattern: ^[\w\s\.\-,:/()+@]*$|\<na\>
+  EmergencyContactNote3:
+    Type: String
+    Default: <na>
+    AllowedPattern: ^[\w\s\.\-,:/()+@]*$|\<na\>
+  EmergencyContactNote4:
+    Type: String
+    Default: <na>
+    AllowedPattern: ^[\w\s\.\-,:/()+@]*$|\<na\>
+  EmergencyContactNote5:
+    Type: String
+    Default: <na>
+    AllowedPattern: ^[\w\s\.\-,:/()+@]*$|\<na\>
+  EnabledProactiveEngagement:
+    Type: String
+    Default: "True"
+    Description: Note you must also configure emergency contact(s) and health checks for protected resources for this feature to function.
+    AllowedValues:
+      - "True"
+      - "False"
+  SRTBuckets:
+    Type: CommaDelimitedList
+    Description: You can grant SRT access to S3 buckets with logs beyond AWS WAF logs.  This is not commonly configured.
+    Default: <na>
+  SRTAccessRoleName:
+    Type: String
+    Description: If you elect for CloudFormation to create the IAM role, what name should that role have?
+    Default: <Generated>
+  SRTAccessRoleAction:
+    Type: String
+    Default: "CreateRole"
+    AllowedValues:
+    - "UseExisting"
+    - "CreateRole"
+  EnableSRTAccess:
+    Type: String
+    Default: "False"
+    Description: If enabled, this is granted via a Service Linked role permission for SRT to update your WAF WebACLs during an engagement.
+    AllowedValues:
+      - "True"
+      - "False"
+  IncludeExcludeScope:
+    Type: String
+    Default: Include
+    AllowedValues:
+      - Include
+      - Exclude
+  ScopeType:
+    Type: String
+    Description: "Should Firewall Manager Policies be scoped to the entire AWS Organization (Org), one or more OUs (OU), or one or more AWS Accounts (Accounts)"
+    Default: Org
+    AllowedValues:
+      - Org
+      - OU
+      - Accounts
+  ResourceTagUsage:
+    Type: String
+    Default: Include
+    Description: Include will scope to only include when ResourceTags match, Exclude will exclude when target resource tags match ResourceTags
+    AllowedValues:
+      - Include
+      - Exclude
+  ProtectRegionalResourceTypes:
+    Type: String
+    Description: Application Load Balancers | Classic Load Balancers | EIPs
+    Default: AWS::ElasticLoadBalancingV2::LoadBalancer,AWS::ElasticLoadBalancing::LoadBalancer,AWS::EC2::EIP
+    AllowedValues:
+      - AWS::ElasticLoadBalancingV2::LoadBalancer,AWS::ElasticLoadBalancing::LoadBalancer,AWS::EC2::EIP
+      - AWS::ElasticLoadBalancingV2::LoadBalancer,AWS::ElasticLoadBalancing::LoadBalancer
+      - AWS::ElasticLoadBalancingV2::LoadBalancer,AWS::EC2::EIP
+      - AWS::ElasticLoadBalancing::LoadBalancer,AWS::EC2::EIP
+      - AWS::ElasticLoadBalancingV2::LoadBalancer
+      - AWS::ElasticLoadBalancing::LoadBalancer
+      - AWS::EC2::EIP
+      - <na>
+  ProtectCloudFront:
+    Type: String
+    Description: CloudFront Distributions
+    Default: AWS::CloudFront::Distribution
+    AllowedValues:
+      - AWS::CloudFront::Distribution
+      - <na>
+  WAFv2ProtectRegionalResourceTypes:
+    Type: String
+    Description: API Gateways | Application Load Balancers
+    Default: AWS::ApiGateway::Stage,AWS::ElasticLoadBalancingV2::LoadBalancer
+    AllowedValues:
+      - AWS::ApiGateway::Stage,AWS::ElasticLoadBalancingV2::LoadBalancer
+      - AWS::ElasticLoadBalancingV2::LoadBalancer
+      - AWS::ApiGateway::Stage
+      - <na>
+  WAFv2ProtectCloudFront:
+    Type: String
+    Description: CloudFront Distributions
+    Default: AWS::CloudFront::Distribution
+    AllowedValues:
+      - AWS::CloudFront::Distribution
+      - <na>
+  ShieldAutoRemediate:
+    Type: String
+    Description: "Should in scope AWS resource types have Shield Advanced protection automatically be remediated?"
+    Default: "Yes"
+    AllowedValues:
+      - "Yes"
+      - "No"
+  WAFv2AutoRemediate:
+    Type: String
+    Description: "Should in scope AWS resource types that support AWS WAF automatically be remediated?"
+    Default: Yes | If no current WebACL
+    AllowedValues:
+      - "Yes | Replace existing exsiting WebACL"
+      - "Yes | If no current WebACL"
+      - "No"
+  ShieldScopeTagName1:
+    Type: String
+    Description: Tag name for Shield Firewall Manager security policies to scope resources
+    Default: <na>
+  ShieldScopeTagName2:
+    Type: String
+    Description: Tag name for Shield Firewall Manager security policies to scope resources
+    Default: <na>
+  ShieldScopeTagName3:
+    Type: String
+    Description: Tag name for Shield Firewall Manager security policies to scope resources
+    Default: <na>
+  ShieldScopeTagValue1:
+    Type: String
+    Description: Tag value for Shield Firewall Manager security policies to scope resources.  No value with a tag name specified means any resource with that tag.
+    Default: <na>
+  ShieldScopeTagValue2:
+    Type: String
+    Description: Tag value for Shield Firewall Manager security policies to scope resources.  No value with a tag name specified means any resource with that tag.
+    Default: <na>
+  ShieldScopeTagValue3:
+    Type: String
+    Description: Tag value for Shield Firewall Manager security policies to scope resources.  No value with a tag name specified means any resource with that tag.
+    Default: <na>
+  WAFv2ScopeTagName1:
+    Type: String
+    Description: Tag name for WAF Firewall Manager security policies to scope resources
+    Default: <na>
+  WAFv2ScopeTagName2:
+    Type: String
+    Description: Tag name for WAF Firewall Manager security policies to scope resources
+    Default: <na>
+  WAFv2ScopeTagName3:
+    Type: String
+    Description: Tag name for WAF Firewall Manager security policies to scope resources
+    Default: <na>
+  WAFv2ScopeTagValue1:
+    Type: String
+    Description: Tag value for WAF Firewall Manager security policies to scope resources.  No value with a tag name specified means any resource with that tag.
+    Default: <na>
+  WAFv2ScopeTagValue2:
+    Type: String
+    Description: Tag value for WAF Firewall Manager security policies to scope resources.  No value with a tag name specified means any resource with that tag.
+    Default: <na>
+  WAFv2ScopeTagValue3:
+    Type: String
+    Description: Tag value for WAF Firewall Manager security policies to scope resources.  No value with a tag name specified means any resource with that tag.
+    Default: <na>
+  RateLimitValue:
+    Type: String
+    Description: AWS WAF rate limits use the previous 5 minutes to determine if an IP has exceeded the defined limit.
+    Default: 10000
+  RateLimitAction:
+    Type: String
+    Default: Count
+    AllowedValues:
+    - Block
+    - Count
+  AnonymousIPAMRAction:
+    Type: String
+    Description: The Anonymous IP list rule group contains rules to block requests from services that permit the obfuscation of viewer identity. These include requests from VPNs, proxies, Tor nodes, and hosting providers. This rule group is useful if you want to filter out viewers that might be trying to hide their identity from your application. 
+    Default: Count
+    AllowedValues:
+    - Block
+    - Count
+  IPReputationAMRAction:
+    Type: String
+    Description: The Amazon IP reputation list rule group contains rules that are based on Amazon internal threat intelligence. This is useful if you would like to block IP addresses typically associated with bots or other threats. Blocking these IP addresses can help mitigate bots and reduce the risk of a malicious actor discovering a vulnerable application.
+    Default: Block
+    AllowedValues:
+    - Block
+    - Count
+  CoreRuleSetAMRAction:
+    Type: String
+    Description: The Core rule set (CRS) rule group contains rules that are generally applicable to web applications. This provides protection against exploitation of a wide range of vulnerabilities, including some of the high risk and commonly occurring vulnerabilities described in OWASP publications such as OWASP Top 10
+    Default: Count
+    AllowedValues:
+    - Block
+    - Count
+  KnownBadInputsAMRAction:
+    Type: String
+    Description: The Known bad inputs rule group contains rules to block request patterns that are known to be invalid and are associated with exploitation or discovery of vulnerabilities. This can help reduce the risk of a malicious actor discovering a vulnerable application.
+    Default: Count
+    AllowedValues:
+    - Block
+    - Count
+  ScopeRegions:
+    Description: A comma separated list of AWS regions, e.g. us-east-1, us-east-2
+    Type: CommaDelimitedList
+    AllowedPattern: ((af|ap|ca|eu|me|sa|us)-(central|north|(north(?:east|west))|south|south(?:east|west)|east|west)-\d+)(,\s(af|ap|ca|eu|me|sa|us)-(central|north|(north(?:east|west))|south|south(?:east|west)|east|west)-\d+)*
+  ScopeDetails:
+    Description: If Scope is Org, specify root ID, e.g. r-1234 | If Scope is OUs, specify comma separated list of OUs | If Scope is Accounts, specify comma separated list of Accounts
+    Type: CommaDelimitedList
+    AllowedPattern: (^r-[0-9a-z]{4,32}$)|((ou-[0-9a-z]{4,32}-[a-z0-9]{8,32})((,\s*|,\)ou-[0-9a-z]{4,32}-[a-z0-9]{8,32}$)*)|(\d{12})(,\s*\d{12})*)
+  CallAs:
+    Type: String
+    Default: DELEGATED_ADMIN
+    Description: Specify DELEGATED_ADMIN if this account is NOT the payer account.  Specify SELF is it the payer.
+    AllowedValues:
+    - DELEGATED_ADMIN
+    - SELF
+  UseLakeFormationPermissions:
+    Type: String
+    Default: True
+    AllowedValues:
+    - True
+    - False
+Conditions:
+    AcceptedShieldTerms: !And
+    - Fn::Equals:
+      - "True"
+      - !Ref AcknowledgeServiceTermsPricing
+    - Fn::Equals:
+      - "True"
+      - !Ref AcknowledgeServiceTermsDTO
+    - Fn::Equals:
+      - "True"
+      - !Ref AcknowledgeServiceTermsCommitment
+    - Fn::Equals:
+      - "True"
+      - !Ref AcknowledgeServiceTermsAutoRenew
+    - Fn::Equals:
+      - "True"
+      - !Ref AcknowledgeNoUnsubscribe
+    FMSisSelfFlag: !Equals [!Ref FMSAdministratorAccount, "<Self>"]
+    OUOrOrgScopeFlag: !Or
+    - !Equals [!Ref ScopeType, "Org"]
+    - !Equals [!Ref ScopeType, "OU"]
+    AccountScopeFlag: !Equals [!Ref ScopeType, "Accounts"]
+
+Resources:
+  S3IAMDelivereRoleStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://code-oneclickshield-${AWS::AccountId}-${AWS::Region}.s3.amazonaws.com/s3iam.yaml"
+      Parameters:
+        ScopeRegions: !Join [",", !Ref ScopeRegions]
+        UseLakeFormationPermissions: !Ref UseLakeFormationPermissions
+  ShieldStackSet:
+    Condition: AcceptedShieldTerms
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Type: 'AWS::CloudFormation::StackSet'
+    Properties:
+      StackSetName: !Sub "Subscribe-Configure-Shield-${AWS::StackName}"
+      Description: Subscribe and Configure Core Shield Advanced Features
+      TemplateURL: !Sub "https://code-oneclickshield-${AWS::AccountId}-${AWS::Region}.s3.amazonaws.com/shield-configure-subscribe.yaml"
+      PermissionModel: !If [OUOrOrgScopeFlag, "SERVICE_MANAGED", "SELF_MANAGED"]
+      CallAs: !Ref CallAs
+      OperationPreferences:
+        RegionConcurrencyType: PARALLEL
+        MaxConcurrentCount: 10
+      StackInstancesGroup:
+        - DeploymentTargets:
+            Accounts: !If [AccountScopeFlag, !Ref ScopeDetails, !Ref "AWS::NoValue"]
+            OrganizationalUnitIds: !If [AccountScopeFlag, !Ref "AWS::NoValue", !Ref ScopeDetails]
+          Regions:
+            - !Ref "AWS::Region"
+      Capabilities:
+         - CAPABILITY_IAM
+         - CAPABILITY_NAMED_IAM 
+      AutoDeployment:
+        Enabled: True
+        RetainStacksOnAccountRemoval: False
+      Parameters:
+      - ParameterKey: AcknowledgeServiceTermsPricing
+        ParameterValue: !Ref "AcknowledgeServiceTermsPricing"
+      - ParameterKey: AcknowledgeServiceTermsDTO
+        ParameterValue: !Ref "AcknowledgeServiceTermsDTO"
+      - ParameterKey: AcknowledgeServiceTermsCommitment
+        ParameterValue: !Ref "AcknowledgeServiceTermsCommitment"
+      - ParameterKey: AcknowledgeServiceTermsAutoRenew
+        ParameterValue: !Ref "AcknowledgeServiceTermsAutoRenew"
+      - ParameterKey: AcknowledgeNoUnsubscribe
+        ParameterValue: !Ref "AcknowledgeNoUnsubscribe"
+      - ParameterKey: EmergencyContactEmail1
+        ParameterValue: !Ref "EmergencyContactEmail1"
+      - ParameterKey: EmergencyContactEmail2
+        ParameterValue: !Ref "EmergencyContactEmail2"
+      - ParameterKey: EmergencyContactEmail3
+        ParameterValue: !Ref "EmergencyContactEmail3"
+      - ParameterKey: EmergencyContactEmail4
+        ParameterValue: !Ref "EmergencyContactEmail4"
+      - ParameterKey: EmergencyContactEmail5
+        ParameterValue: !Ref "EmergencyContactEmail5"
+      - ParameterKey: EmergencyContactPhone1
+        ParameterValue: !Ref "EmergencyContactPhone1"
+      - ParameterKey: EmergencyContactPhone2
+        ParameterValue: !Ref "EmergencyContactPhone2"
+      - ParameterKey: EmergencyContactPhone3
+        ParameterValue: !Ref "EmergencyContactPhone3"
+      - ParameterKey: EmergencyContactPhone4
+        ParameterValue: !Ref "EmergencyContactPhone4"
+      - ParameterKey: EmergencyContactPhone5
+        ParameterValue: !Ref "EmergencyContactPhone5"
+      - ParameterKey: EmergencyContactNote1
+        ParameterValue: !Ref "EmergencyContactNote1"
+      - ParameterKey: EmergencyContactNote2
+        ParameterValue: !Ref "EmergencyContactNote2"
+      - ParameterKey: EmergencyContactNote3
+        ParameterValue: !Ref "EmergencyContactNote3"
+      - ParameterKey: EmergencyContactNote4
+        ParameterValue: !Ref "EmergencyContactNote4"
+      - ParameterKey: EmergencyContactNote5
+        ParameterValue: !Ref "EmergencyContactNote5"
+      - ParameterKey: EnabledProactiveEngagement
+        ParameterValue: !Ref "EnabledProactiveEngagement"
+      - ParameterKey: SRTBuckets
+        ParameterValue: !Join [",", !Ref "SRTBuckets"]
+      - ParameterKey: SRTAccessRoleName
+        ParameterValue: !Ref "SRTAccessRoleName"
+      - ParameterKey: SRTAccessRoleAction
+        ParameterValue: !Ref "SRTAccessRoleAction"
+      - ParameterKey: EnableSRTAccess
+        ParameterValue: !Ref "EnableSRTAccess"
+
+  ShieldProtectionStackSet:
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks:
+            - E3002
+    Condition: AcceptedShieldTerms
+    DependsOn: ShieldStackSet
+    Type: 'AWS::CloudFormation::StackSet'
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Properties:
+      StackSetName: !Sub "FMS-Shield-${AWS::StackName}"
+      Description: Create FMS Security Policy(s) to enable Shield Advanced Protection
+      TemplateURL: !Sub "https://code-oneclickshield-${AWS::AccountId}-${AWS::Region}.s3.amazonaws.com/fms-shield.yaml"
+      PermissionModel: !If [OUOrOrgScopeFlag, "SERVICE_MANAGED", "SELF_MANAGED"]
+      CallAs: !Ref CallAs
+      OperationPreferences:
+        RegionConcurrencyType: PARALLEL
+        MaxConcurrentCount: 10
+      StackInstancesGroup:
+        - DeploymentTargets:
+            AccountFilterType: !If [OUOrOrgScopeFlag, "INTERSECTION",!Ref "AWS::NoValue"]
+            Accounts: 
+            - !If [FMSisSelfFlag, !Ref "AWS::AccountId", !Ref FMSAdministratorAccount]
+            OrganizationalUnitIds: !If [OUOrOrgScopeFlag, !Ref ScopeDetails, !Ref "AWS::NoValue" ]
+          Regions: !Ref ScopeRegions
+      Capabilities:
+         - CAPABILITY_IAM
+         - CAPABILITY_NAMED_IAM 
+      AutoDeployment:
+        Enabled: True
+        RetainStacksOnAccountRemoval: False
+      Parameters:
+        - ParameterKey: ScopeDetails
+          ParameterValue: !Join [",", !Ref "ScopeDetails"]
+        - ParameterKey: IncludeExcludeScope
+          ParameterValue: !Ref "IncludeExcludeScope"
+        - ParameterKey: ScopeType
+          ParameterValue: !Ref "ScopeType"
+        - ParameterKey: ResourceTagUsage
+          ParameterValue: !Ref "ResourceTagUsage"
+        - ParameterKey: ProtectRegionalResourceTypes
+          ParameterValue: !Ref "ProtectRegionalResourceTypes"
+        - ParameterKey: ProtectCloudFront
+          ParameterValue: !Ref "ProtectCloudFront"
+        - ParameterKey: ShieldAutoRemediate
+          ParameterValue: !Ref "ShieldAutoRemediate"
+        - ParameterKey: ScopeTagName1
+          ParameterValue: !Ref "ShieldScopeTagName1"
+        - ParameterKey: ScopeTagName2
+          ParameterValue: !Ref "ShieldScopeTagName2"
+        - ParameterKey: ScopeTagName3
+          ParameterValue: !Ref "ShieldScopeTagName3"
+        - ParameterKey: ScopeTagValue1
+          ParameterValue: !Ref "ShieldScopeTagValue1"
+        - ParameterKey: ScopeTagValue2
+          ParameterValue: !Ref "ShieldScopeTagValue2"
+        - ParameterKey: ScopeTagValue3
+          ParameterValue: !Ref "ShieldScopeTagValue3"
+  WAFv2StackSet:
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks:
+            - E3002
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Type: 'AWS::CloudFormation::StackSet'
+    Properties:
+      StackSetName: !Sub "FMS-WAF-${AWS::StackName}"
+      Description: Create FMS Security Policy(s) to deploy AWS WAF
+      TemplateURL: !Sub "https://code-oneclickshield-${AWS::AccountId}-${AWS::Region}.s3.amazonaws.com/fms-wafv2.yaml"
+      PermissionModel: SERVICE_MANAGED
+      CallAs: !Ref CallAs
+      OperationPreferences:
+        RegionConcurrencyType: PARALLEL
+        MaxConcurrentCount: 10
+      StackInstancesGroup:
+        - DeploymentTargets:
+            AccountFilterType: !If [OUOrOrgScopeFlag, "INTERSECTION",!Ref "AWS::NoValue"]
+            Accounts:
+            - !If [FMSisSelfFlag, !Ref "AWS::AccountId", !Ref FMSAdministratorAccount]
+            OrganizationalUnitIds: !If [OUOrOrgScopeFlag, !Ref ScopeDetails, !Ref "AWS::NoValue" ]
+          Regions: !Ref ScopeRegions
+      Capabilities:
+         - CAPABILITY_IAM
+         - CAPABILITY_NAMED_IAM 
+      AutoDeployment:
+        Enabled: True
+        RetainStacksOnAccountRemoval: False
+      Parameters:
+        - ParameterKey: ScopeDetails
+          ParameterValue: !Join [",", !Ref "ScopeDetails"]
+        - ParameterKey: TopStackName
+          ParameterValue: !Ref "AWS::StackName"
+        - ParameterKey: WAFLogS3BucketName
+          ParameterValue: !GetAtt "S3IAMDelivereRoleStack.Outputs.WAFLogS3BucketName"
+        - ParameterKey: WAFDeliveryRoleArn
+          ParameterValue: !GetAtt "S3IAMDelivereRoleStack.Outputs.WAFDeliveryRoleArn"
+        - ParameterKey: WAFLogKMSKeyArn
+          ParameterValue: !GetAtt "S3IAMDelivereRoleStack.Outputs.WAFLogKMSKeyArn"
+        - ParameterKey: WAFv2AutoRemediate
+          ParameterValue: !Ref WAFv2AutoRemediate
+        - ParameterKey: IncludeExcludeScope
+          ParameterValue: !Ref "IncludeExcludeScope"
+        - ParameterKey: ScopeType
+          ParameterValue: !Ref "ScopeType"
+        - ParameterKey: ResourceTagUsage
+          ParameterValue: !Ref "ResourceTagUsage"
+        - ParameterKey: WAFv2ProtectRegionalResourceTypes
+          ParameterValue: !Ref "WAFv2ProtectRegionalResourceTypes"
+        - ParameterKey: WAFv2ProtectCloudFront
+          ParameterValue: !Ref "WAFv2ProtectCloudFront"
+        - ParameterKey: ScopeTagName1
+          ParameterValue: !Ref "WAFv2ScopeTagName1"
+        - ParameterKey: ScopeTagName2
+          ParameterValue: !Ref "WAFv2ScopeTagName2"
+        - ParameterKey: ScopeTagName3
+          ParameterValue: !Ref "WAFv2ScopeTagName3"
+        - ParameterKey: ScopeTagValue1
+          ParameterValue: !Ref "WAFv2ScopeTagValue1"
+        - ParameterKey: ScopeTagValue2
+          ParameterValue: !Ref "WAFv2ScopeTagValue2"
+        - ParameterKey: ScopeTagValue3
+          ParameterValue: !Ref "WAFv2ScopeTagValue3"
+        - ParameterKey: RateLimitValue
+          ParameterValue: !Ref "RateLimitValue"
+        - ParameterKey: RateLimitAction
+          ParameterValue: !Ref "RateLimitAction"
+        - ParameterKey: AnonymousIPAMRAction
+          ParameterValue: !Ref "AnonymousIPAMRAction"
+        - ParameterKey: IPReputationAMRAction
+          ParameterValue: !Ref "IPReputationAMRAction"
+        - ParameterKey: CoreRuleSetAMRAction
+          ParameterValue: !Ref "CoreRuleSetAMRAction"
+        - ParameterKey: KnownBadInputsAMRAction
+          ParameterValue: !Ref "KnownBadInputsAMRAction"
