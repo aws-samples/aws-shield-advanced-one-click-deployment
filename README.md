@@ -16,7 +16,8 @@ Creates Security policies in each configured region and globally (if desired) to
 ### Firewall Manager Security Policies for WAFv2  
 Creates Security policies in each configured region and globally (if desired) to manage WAFv2 on supported resources based on a provided scope
 
-
+# How To Video
+This [YouTube](https://www.youtube.com/watch?v=hrRfRFNnDRU) video goes into detail about how this solution works and what it achieves.
 # Prerequisites
 
 ##  AWS Support  
@@ -109,7 +110,7 @@ else
     aws s3api create-bucket --bucket "$BucketName" --region $region --create-bucket-configuration LocationConstraint="$region"  
 fi
 
-aws s3 sync ./ s3://$BucketName --include "./*.yaml" --exclude ".git/*"
+aws s3 sync ./templates/ s3://$BucketName --include "./*.yaml" --exclude ".git/*"
 
 echo -e "\033[0;32mOpen this link to start deploying the CloudFormation Template: \033[0;34m\nhttps://$region.console.aws.amazon.com/cloudformation/home?region=$region#/stacks/quickcreate?templateURL=https%3A%2F%2Fs3.$region.amazonaws.com%2F$BucketName%2Ftemplate.yaml&stackName=aws-shield-advanced-one-click-deploy&param_IncludeGlobalResourceTypes=false&param_ResourceTypes=%3CAll%3E&param_NotificationEmail=%3CNone%3E&param_TopicArn=%3CNew%20Topic%3E&param_DeliveryChannelName=%3CGenerated%3E&param_PrimaryRegion=&param_S3KeyPrefix=%3CNo%20Prefix%3E&param_Frequency=24hours&param_SNS=true&param_AllSupported=true&param_S3BucketName=%3CNew%20Bucket%3E&param_ScopeDetails=$rootId&param_CallAs=$callAs&param_ScopeRegions=$region&param_FMSAdministratorAccount=$FMSAdminValue"
 
@@ -125,12 +126,13 @@ If you only provide answers for mandatory fields, the default deployment will do
 3. All CloudFront Distributions, Application Load balancers, and API Gateways will have an AWS WAF WebACL attached (if there was not already one in place).  
 4. All WebACLs send WAF logs to a central bucket in a central region. _This S3 bucket is created in the location the initial stack was deployed in._
 5.  The WebACl includes the following rules:  
-a) A [Rate based rule](https://docs.aws.amazon.com/waf/latest/developerguide/waf-rule-statement-type-rate-based.html) with a value of 10,000 action of Count  
-b) [Anonymous IP](https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-ip-rep.html#aws-managed-rule-groups-ip-rep-anonymous) Amazon Managed rule | All rule actions overridden to Count  
-c) [IP Reputation](https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-ip-rep.html#aws-managed-rule-groups-ip-rep-amazon) Amazon Managed rule | All rules with action Block  
-d) [Core Rule Set](https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-crs) Amazon Managed rule | All rule actions overridden to Count  
-e) [Known Bad Inputs](https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-known-bad-inputs) Amazon Managed rule | All rule actions overridden to Count  
-6.  An Athena Table and workgroup created with several named queries and views relevant to reviewing WAF logs.
+a) A [Rate based rule](https://docs.aws.amazon.com/waf/latest/developerguide/waf-rule-statement-type-rate-based.html) with a value of 10,000 action of COUNT  
+b) [Anonymous IP](https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-ip-rep.html#aws-managed-rule-groups-ip-rep-anonymous) Amazon Managed rule | All rule actions overridden to COUNT  
+c) [IP Reputation](https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-ip-rep.html#aws-managed-rule-groups-ip-rep-amazon) Amazon Managed rule | All rules with action BLOCK  
+d) [Core Rule Set](https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-crs) Amazon Managed rule | All rule actions overridden to COUNT  
+e) [Known Bad Inputs](https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-baseline.html#aws-managed-rule-groups-baseline-known-bad-inputs) Amazon Managed rule | All rule actions overridden to COUNT    
+6. All Shield Protected resources that support AWS WAF (CloudFront and Application Load Balancers) configured with Shield Advanced automatic application layer DDoS mitigation enabled and an action of COUNT
+7.  An Athena Table and workgroup created with several named queries and views relevant to reviewing WAF logs.
 
 ## **Customization**
 
@@ -180,35 +182,35 @@ Acknowledge AWS Shield Advanced has a $3000 / month subscription fee for a conso
 
     Required: Yes
     Type: Bool
-    AllowedValues: True, False
+    AllowedValues: True | False
 
 **AcknowledgeServiceTermsDTO**  
 Acknowledge AWS Shield Advanced has a Data transfer out usage fees for all protected resources.
 
     Required: Yes
     Type: Bool
-    AllowedValues: True, False
+    AllowedValues: True | False
 
 **AcknowledgeServiceTermsCommitment**  
 AWS Shield Advanced has a 12 month commitment.
 
     Required: Yes
     Type: Bool
-    AllowedValues: True, False
+    AllowedValues: True | False
 
 **AcknowledgeServiceTermsAutoRenew**  
 Acknowledge Shield Advanced subscriptions will auto-renewed after 12 months.  However, I can opt out of renewal 30 days prior to the renewal date.
 
     Required: Yes
     Type: Bool
-    AllowedValues: True, False
+    AllowedValues: True | False
 
 **AcknowledgeNoUnsubscribe**  
 Acknowledge a Shield Advanced subscription commitment will continue even if this CloudFormation Stack is deleted.
 
     Required: Yes
     Type: Bool
-    AllowedValues: True, False
+    AllowedValues: True | False
 
 --- 
 
@@ -219,7 +221,7 @@ AWS Shield Advanced allows you to create and authorize SRT (Shield Response Team
 
     Required: Yes
     Type: Bool
-    AllowedValues: True, False
+    AllowedValues: True | False
 
 
 **EnabledProactiveEngagement**  
@@ -227,7 +229,7 @@ AWS SRT (Shield Response Team) can proactively reach out when Shield Advanced de
 
     Required: Yes
     Type: Bool
-    AllowedValues: True, False
+    AllowedValues: True | False
 
 **EmergencyContactEmail1**  
 During a Proactive Engagement, SRT (Shield Response Team) will reach out to your emergency contacts.  You must configure one or more emergency contacts along with enabling Proactive Engagement.  Specify a valid e-mail address
@@ -317,8 +319,9 @@ CloudFormation Service Managed StackSets being run from a delegated CloudFormati
 **ProtectRegionalResourceTypes**  
 Firewall Manager can establish Shield Protection on regional Resources.  Select one of the following combinations of supported regional resources
 
-    Required: No
-    Type: String
+    Required: No  
+    Type: String  
+    Default: AWS::ElasticLoadBalancingV2::LoadBalancer,AWS::ElasticLoadBalancing::LoadBalancer,AWS::EC2::EIP  
     AllowedValues:
       - AWS::ElasticLoadBalancingV2::LoadBalancer,AWS::ElasticLoadBalancing::LoadBalancer,AWS::EC2::EIP
       - AWS::ElasticLoadBalancingV2::LoadBalancer,AWS::ElasticLoadBalancing::LoadBalancer
@@ -334,6 +337,7 @@ Firewall Manager can establish Shield Protection on Global Resources; today this
 
     Required: No
     Type: String
+    Default: AWS::CloudFront::Distribution  
     AllowedValues:
       - AWS::CloudFront::Distribution
       - <na>
@@ -343,6 +347,7 @@ Firewall Manager can create and associate a WebACl on regional Resources.  Selec
 
     Required: No
     Type: String
+    Default: AWS::ApiGateway::Stage,AWS::ElasticLoadBalancingV2::LoadBalancer  
     AllowedValues:
       - AWS::ApiGateway::Stage,AWS::ElasticLoadBalancingV2::LoadBalancer
       - AWS::ElasticLoadBalancingV2::LoadBalancer
@@ -354,6 +359,7 @@ Firewall Manager can create and associate a WebACl on global Resources. Select o
 
     Required: No
     Type: String
+    Default: AWS::CloudFront::Distribution
     AllowedValues:
       - AWS::CloudFront::Distribution
       - <na>
@@ -363,6 +369,7 @@ Firewall Manager can establish Shield Protection for regional and global resourc
 
     Required: No
     Type: String
+    Default: Yes
     AllowedValues: 
     - Yes
     - No
@@ -387,6 +394,7 @@ The value for the WebACL deployed by Firewall Manager rate based rule.  This val
 
     Required: No
     Type: Number
+    Default: 10000
     MinValue: 100
     MaxValue: 2,000,000
 
@@ -442,6 +450,50 @@ The WebACL deployed by Firewall Manager includes the AMR (Amazon Managed Rule)	[
 
 --- 
 
+## AWS Shield Advanced Protected Resource Configuration **[Optional]**
+
+**RegionalAutomaticResponseStatus**  
+Shield Advanced automatic application layer DDoS mitigation allows Shield Advanced in response to a HTTP flood against a protected regional resource (Application Load Balancers) based on a baseline from historic traffic.
+
+    Required: No
+    Type: String
+    Default: ENABLED
+    AllowedValues:
+    - ENABLED
+    - DISABLED
+
+**RegionalAutomaticResponseAction**  
+Specify the action the rule group created and managed by Shield Advanced automatic application layer DDoS mitigation on regional resources should take
+
+    Required: No
+    Type: String
+    Default: COUNT
+    AllowedValues:
+    - COUNT
+    - BLOCK
+
+**CloudFrontAutomaticResponseStatus**  
+Shield Advanced automatic application layer DDoS mitigation allows Shield Advanced in response to a HTTP flood against a protected CloudFront resource (Application Load Balancers) based on a baseline from historic traffic.
+
+    Required: No
+    Type: String
+    Default: ENABLED
+    AllowedValues:
+    - ENABLED
+    - DISABLED
+
+**CloudFrontAutomaticResponseAction**  
+Specify the action the rule group created and managed by Shield Advanced automatic application layer DDoS mitigation on CloudFront resources should take
+
+    Required: No
+    Type: String
+    Default: COUNT
+    AllowedValues:
+    - COUNT
+    - BLOCK
+
+--- 
+
 ## AWS Shield Advanced SRT Access **[Optional]**
 
 **SRTAccessRoleName**  
@@ -449,6 +501,7 @@ When SRT Access is granted that role will have this name.  Depending on the valu
 
     Required: No
     Type: String
+    Default: <Generated>
 
 **SRTAccessRoleAction**  
 When SRT Access is granted, is the role specified in SRTAccessRoleName a role that CloudFormation needs to create or that already exists.
@@ -476,6 +529,7 @@ During a Proactive Engagement, SRT (Shield Response Team) will reach out to your
 
     Required: Yes
     Type: String
+    Default: <na>
     AllowedPattern: ^\S+@\S+\.\S+$|\<na\>
 
 **EmergencyContactPhone2**  
@@ -483,6 +537,7 @@ During a Proactive Engagement, SRT (Shield Response Team) will reach out to your
 
     Required: Yes
     Type: String
+    Default: <na>
     AllowedPattern: ^\+[0-9]{11}|\<na\>
 
 **EmergencyContactNote2**  
@@ -490,6 +545,7 @@ During a Proactive Engagement, SRT (Shield Response Team) will reach out to your
 
     Required: Yes
     Type: String
+    Default: <na>
     AllowedPattern: ^[\w\s\.\-,:/()+@]*$|\<na\>
 
 **EmergencyContactEmail3**  
@@ -497,6 +553,7 @@ During a Proactive Engagement, SRT (Shield Response Team) will reach out to your
 
     Required: No
     Type: String
+    Default: <na>
     AllowedPattern: ^\S+@\S+\.\S+$|\<na\>
 
 **EmergencyContactPhone3**  
@@ -504,6 +561,7 @@ During a Proactive Engagement, SRT (Shield Response Team) will reach out to your
 
     Required: No
     Type: String
+    Default: <na>
     AllowedPattern: ^\+[0-9]{11}|\<na\>
 
 **EmergencyContactNote3**  
@@ -511,6 +569,7 @@ During a Proactive Engagement, SRT (Shield Response Team) will reach out to your
 
     Required: No
     Type: String
+    Default: <na>
     AllowedPattern: ^[\w\s\.\-,:/()+@]*$|\<na\>
 
 **EmergencyContactEmail4**  
@@ -518,6 +577,7 @@ During a Proactive Engagement, SRT (Shield Response Team) will reach out to your
 
     Required: No
     Type: String
+    Default: <na>
     AllowedPattern: ^\S+@\S+\.\S+$|\<na\>
 
 **EmergencyContactPhone4**  
@@ -525,6 +585,7 @@ During a Proactive Engagement, SRT (Shield Response Team) will reach out to your
 
     Required: No
     Type: String
+    Default: <na>
     AllowedPattern: ^\+[0-9]{11}|\<na\>
 
 **EmergencyContactNote4**  
@@ -532,6 +593,7 @@ During a Proactive Engagement, SRT (Shield Response Team) will reach out to your
 
     Required: No
     Type: String
+    Default: <na>
     AllowedPattern: ^[\w\s\.\-,:/()+@]*$|\<na\>
 
 **EmergencyContactEmail5**  
@@ -539,6 +601,7 @@ During a Proactive Engagement, SRT (Shield Response Team) will reach out to your
 
     Required: No
     Type: String
+    Default: <na>
     AllowedPattern: ^\S+@\S+\.\S+$|\<na\>
 
 **EmergencyContactPhone5**  
@@ -546,6 +609,7 @@ During a Proactive Engagement, SRT (Shield Response Team) will reach out to your
 
     Required: No
     Type: String
+    Default: <na>
     AllowedPattern: ^\+[0-9]{11}|\<na\>
 
 **EmergencyContactNote5**  
@@ -553,6 +617,7 @@ During a Proactive Engagement, SRT (Shield Response Team) will reach out to your
 
     Required: No
     Type: String
+    Default: <na>
     AllowedPattern: ^[\w\s\.\-,:/()+@]*$|\<na\>
 
 --- 
@@ -564,6 +629,7 @@ If tags are used to scope with Firewall Manager Security Policies, are these tag
 
     Required: No
     Type: String
+    Default: Include
     AllowedValues:
       - Include
       - Exclude

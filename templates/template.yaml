@@ -53,6 +53,14 @@ Metadata:
         default: Emergency Contact 5 | Phone Number
       EmergencyContactNote5:
         default: Emergency Contact 5 | Notes
+      CloudFrontAutomaticResponseAction:
+        default: Shield Advanced automatic application layer DDoS mitigation for CloudFront Resources via Firewall Manager
+      CloudFrontAutomaticResponseStatus:
+        default: Shield Advanced automatic application layer DDoS mitigation action for CloudFront Resources
+      RegionalAutomaticResponseStatus:
+        default: Shield Advanced automatic application layer DDoS mitigation for regional Resources via Firewall Manager
+      RegionalAutomaticResponseAction:
+        default: Shield Advanced automatic application layer DDoS mitigation action for Regional Resources
       CallAs:
         default: Service Managed StackSets require an additional flag if deployed from a CloudFormation Delegated Administrator.
       ScopeType:
@@ -159,6 +167,10 @@ Metadata:
           - AnonymousIPAMRAction
           - KnownBadInputsAMRAction
           - CoreRuleSetAMRAction
+          - RegionalAutomaticResponseStatus
+          - RegionalAutomaticResponseAction
+          - CloudFrontAutomaticResponseStatus
+          - CloudFrontAutomaticResponseAction
       -
         Label:
           default: "AWS Shield Advanced SRT Access [Optional]"
@@ -412,6 +424,34 @@ Parameters:
       - "Yes | Replace existing exsiting WebACL"
       - "Yes | If no current WebACL"
       - "No"
+  RegionalAutomaticResponseStatus:
+    Type: String
+    Description: "Should Firewall Manager enable Shield Advanced automatic application layer DDoS mitigation for regional resources?"
+    Default: ENABLED
+    AllowedValues:
+    - ENABLED
+    - DISABLED
+  RegionalAutomaticResponseAction:
+    Type: String
+    Description: "If enabled, what action should the rule group managed by Shield Advanced automatic application layer DDoS mitigation have for regional resources?"
+    Default: COUNT
+    AllowedValues:
+    - COUNT
+    - BLOCK
+  CloudFrontAutomaticResponseStatus:
+    Type: String
+    Description: "Should Firewall Manager enable Shield Advanced automatic application layer DDoS mitigation for CloudFront resources?"
+    Default: ENABLED
+    AllowedValues:
+    - ENABLED
+    - DISABLED
+  CloudFrontAutomaticResponseAction:
+    Type: String
+    Description: "If enabled, what action should the rule group managed by Shield Advanced automatic application layer DDoS mitigation have for CloudFront resources?"
+    Default: COUNT
+    AllowedValues:
+    - COUNT
+    - BLOCK
   ShieldScopeTagName1:
     Type: String
     Description: Tag name for Shield Firewall Manager security policies to scope resources
@@ -627,6 +667,14 @@ Resources:
         ParameterValue: !Ref "SRTAccessRoleAction"
       - ParameterKey: EnableSRTAccess
         ParameterValue: !Ref "EnableSRTAccess"
+      - ParameterKey: RegionalAutomaticResponseStatus
+        ParameterValue: !Ref "RegionalAutomaticResponseStatus"
+      - ParameterKey: CloudFrontAutomaticResponseStatus
+        ParameterValue: !Ref "CloudFrontAutomaticResponseStatus"
+      - ParameterKey: RegionalAutomaticResponseAction
+        ParameterValue: !Ref "RegionalAutomaticResponseAction"
+      - ParameterKey: CloudFrontAutomaticResponseAction
+        ParameterValue: !Ref "CloudFrontAutomaticResponseAction"
 
   ShieldProtectionStackSet:
     Metadata:

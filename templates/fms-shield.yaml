@@ -38,9 +38,33 @@ Parameters:
       - AWS::ElasticLoadBalancing::LoadBalancer
       - AWS::EC2::EIP
       - <na>
+  RegionalAutomaticResponseStatus:
+    Type: String
+    Default: ENABLED
+    AllowedValues:
+    - ENABLED
+    - DISABLED
+  RegionalAutomaticResponseAction:
+    Type: String
+    Default: COUNT
+    AllowedValues:
+    - COUNT
+    - BLOCK
+  CloudFrontAutomaticResponseStatus:
+    Type: String
+    Default: ENABLED
+    AllowedValues:
+    - ENABLED
+    - DISABLED
+  CloudFrontAutomaticResponseAction:
+    Type: String
+    Default: COUNT
+    AllowedValues:
+    - COUNT
+    - BLOCK
   ProtectCloudFront:
     Type: String
-    Default: <na>
+    Default: AWS::CloudFront::Distribution
     AllowedValues:
       - AWS::CloudFront::Distribution
       - <na>
@@ -86,6 +110,8 @@ Conditions:
     ExcludeScopeFlag: !Equals [!Ref IncludeExcludeScope, "Exclude"]
     CreateRegionalPolicyFlag: !Not [!Equals [!Ref ProtectRegionalResourceTypes, '<na>'] ]
     CreateCloudFrontPolicyFlag: !And [ !Not [!Equals [!Ref ProtectCloudFront, "<na>"] ], !Equals [!Ref AWS::Region, 'us-east-1']]
+    RegionalAutomaticResourceFlag: !Equals [!Ref "RegionalAutomaticResponseStatus", "ENABLED"]
+    CloudFrontAutomaticResourceFlag: !Equals [!Ref "CloudFrontAutomaticResponseStatus", "ENABLED"]
 Resources:
   ShieldRegionalResources:
     Condition: CreateRegionalPolicyFlag
@@ -107,7 +133,12 @@ Resources:
           !If [ExcludeScopeFlag, !If [AccountScopeFlag, !Split [",", !Ref ScopeDetails], !Ref "AWS::NoValue"], !Ref "AWS::NoValue"]
       RemediationEnabled: !If [ShieldAutoRemediateFlag, true, false]
       SecurityServicePolicyData:
-          Type: SHIELD_ADVANCED
+        Type: SHIELD_ADVANCED
+        ManagedServiceData:
+          !If 
+          - RegionalAutomaticResourceFlag
+          - !Sub "{\"type\":\"SHIELD_ADVANCED\",\"automaticResponseConfiguration\": {\"automaticResponseStatus\":\"${RegionalAutomaticResponseStatus}\", \"automaticResponseAction\":\"${RegionalAutomaticResponseAction}\"}}"
+          - !Ref "AWS::NoValue"
       DeleteAllPolicyResources: false
       ResourceTags:
         !If
@@ -148,7 +179,12 @@ Resources:
           !If [ExcludeScopeFlag, !If [AccountScopeFlag,  !Split [",", !Ref ScopeDetails], !Ref "AWS::NoValue"], !Ref "AWS::NoValue"]
       RemediationEnabled: !If [ShieldAutoRemediateFlag, true, false]
       SecurityServicePolicyData:
-          Type: SHIELD_ADVANCED
+        Type: SHIELD_ADVANCED
+        ManagedServiceData:
+          !If 
+          - CloudFrontAutomaticResourceFlag
+          - !Sub "{\"type\":\"SHIELD_ADVANCED\",\"automaticResponseConfiguration\": {\"automaticResponseStatus\":\"${CloudFrontAutomaticResponseStatus}\", \"automaticResponseAction\":\"${CloudFrontAutomaticResponseAction}\"}}"
+          - !Ref "AWS::NoValue"
       DeleteAllPolicyResources: false
       ResourceTags:
         !If
