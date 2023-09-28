@@ -160,6 +160,9 @@ Resources:
               Value: !If [ScopeTagName3Flag, !Ref ScopeTagValue3, ""]
             - !Ref "AWS::NoValue"
         - !Ref "AWS::NoValue"
+      Tags:
+        - Key: aws-sample-project-name
+          Value: aws-shield-advanced-one-click-deployment
   ShieldCloudFrontResources:
     Condition: CreateCloudFrontPolicyFlag
     Type: AWS::FMS::Policy
@@ -186,7 +189,7 @@ Resources:
           - !Sub "{\"type\":\"SHIELD_ADVANCED\",\"automaticResponseConfiguration\": {\"automaticResponseStatus\":\"${CloudFrontAutomaticResponseStatus}\", \"automaticResponseAction\":\"${CloudFrontAutomaticResponseAction}\"}}"
           - !Ref "AWS::NoValue"
       DeleteAllPolicyResources: false
-      ResourceTags:
+      ResourceTags:     
         !If
         - ScopeTagName1Flag
         -
@@ -206,3 +209,6 @@ Resources:
               Value: !If [ScopeTagValue3Flag, !Ref ScopeTagValue3, ""]
             - !Ref "AWS::NoValue"
         - !Ref "AWS::NoValue"
+      Tags:
+        - Key: aws-sample-project-name
+          Value: aws-shield-advanced-one-click-deployment

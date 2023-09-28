@@ -187,6 +187,9 @@ Resources:
             CoreRuleSetActionValue: !If [CoreRuleSetAMRActionFlag, 'NONE','COUNT']
             FirehoseArn: !GetAtt "WAFDeliverystream.Arn"
             AutoRemediateForceValue: !If [AutoRemediateForceFlag,True,False]
+      Tags:
+        - Key: aws-sample-project-name
+          Value: aws-shield-advanced-one-click-deployment
   CloudFrontWAFv2SecurityPolicy:
     Condition: CreateCloudFrontPolicyFlag
     Type: AWS::FMS::Policy
@@ -238,7 +241,9 @@ Resources:
             CoreRuleSetActionValue: !If [CoreRuleSetAMRActionFlag, 'NONE','COUNT']
             FirehoseArn: !GetAtt "WAFDeliverystream.Arn"
             AutoRemediateForceValue: !If [AutoRemediateForceFlag,True,False]
-
+      Tags:
+        - Key: aws-sample-project-name
+          Value: aws-shield-advanced-one-click-deployment
   RegionalRateLimitRuleGroup:
     Condition: CreateRegionalPolicyFlag
     Type: 'AWS::WAFv2::RuleGroup'

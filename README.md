@@ -17,7 +17,7 @@ Creates Security policies in each configured region and globally (if desired) to
 Creates Security policies in each configured region and globally (if desired) to manage WAFv2 on supported resources based on a provided scope
 
 # How To Video
-This [YouTube](https://www.youtube.com/watch?v=hrRfRFNnDRU) video goes into detail about how this solution works and what it achieves.
+This [YouTube](https://www.youtube.com/watch?v=LCA3FwMk_QE) video goes into detail about how this solution works and what it achieves.
 # Prerequisites
 
 ##  AWS Support  
