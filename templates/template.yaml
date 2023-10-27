@@ -667,14 +667,6 @@ Resources:
         ParameterValue: !Ref "SRTAccessRoleAction"
       - ParameterKey: EnableSRTAccess
         ParameterValue: !Ref "EnableSRTAccess"
-      - ParameterKey: RegionalAutomaticResponseStatus
-        ParameterValue: !Ref "RegionalAutomaticResponseStatus"
-      - ParameterKey: CloudFrontAutomaticResponseStatus
-        ParameterValue: !Ref "CloudFrontAutomaticResponseStatus"
-      - ParameterKey: RegionalAutomaticResponseAction
-        ParameterValue: !Ref "RegionalAutomaticResponseAction"
-      - ParameterKey: CloudFrontAutomaticResponseAction
-        ParameterValue: !Ref "CloudFrontAutomaticResponseAction"
 
   ShieldProtectionStackSet:
     Metadata:
@@ -736,6 +728,14 @@ Resources:
           ParameterValue: !Ref "ShieldScopeTagValue2"
         - ParameterKey: ScopeTagValue3
           ParameterValue: !Ref "ShieldScopeTagValue3"
+        - ParameterKey: RegionalAutomaticResponseStatus
+          ParameterValue: !Ref "RegionalAutomaticResponseStatus"
+        - ParameterKey: CloudFrontAutomaticResponseStatus
+          ParameterValue: !Ref "CloudFrontAutomaticResponseStatus"
+        - ParameterKey: RegionalAutomaticResponseAction
+          ParameterValue: !Ref "RegionalAutomaticResponseAction"
+        - ParameterKey: CloudFrontAutomaticResponseAction
+          ParameterValue: !Ref "CloudFrontAutomaticResponseAction"
   WAFv2StackSet:
     Metadata:
       cfn-lint:
