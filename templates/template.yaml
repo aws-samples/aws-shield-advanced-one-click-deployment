@@ -694,8 +694,7 @@ Resources:
             Accounts: 
             - !If [FMSisSelfFlag, !Ref "AWS::AccountId", !Ref FMSAdministratorAccount]
             OrganizationalUnitIds: !If [OUOrOrgScopeFlag, !Ref ScopeDetails, !Ref "AWS::NoValue" ]
-          Regions:
-          - !Ref ScopeRegions
+          Regions: !Ref ScopeRegions
       Capabilities:
          - CAPABILITY_IAM
          - CAPABILITY_NAMED_IAM 
