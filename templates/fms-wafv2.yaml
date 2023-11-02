@@ -248,7 +248,6 @@ Resources:
     Condition: CreateRegionalPolicyFlag
     Type: 'AWS::WAFv2::RuleGroup'
     Properties:
-      Name: !Sub OneClickDeployRuleGroup-${AWS::StackName}
       Scope: REGIONAL
       Description: !Sub OneClickDeployRuleGroup-${AWS::StackName}
       VisibilityConfig:
@@ -274,7 +273,6 @@ Resources:
     Condition: CreateCloudFrontPolicyFlag
     Type: 'AWS::WAFv2::RuleGroup'
     Properties:
-      Name: !Sub OneClickDeployRuleGroup-${AWS::StackName}
       Scope: CLOUDFRONT
       Description: !Sub OneClickDeployRuleGroup-${AWS::StackName}
       VisibilityConfig:
