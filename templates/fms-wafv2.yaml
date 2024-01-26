@@ -20,6 +20,12 @@ Parameters:
       - Org
       - OU
       - Accounts
+  optimizeUnassociatedWebACLValue:
+    Type: String
+    Description: "Should Firewall Manager manage unassociated web ACLs? if True Firewall Manager creates web ACLs in the accounts within policy scope only if the web ACLs will be used by at least one resource"
+    AllowedValues:
+      - True
+      - False
   ResourceTagUsage:
     Type: String
     Default: Include
@@ -27,6 +33,12 @@ Parameters:
     AllowedValues:
       - Include
       - Exclude
+  ResourcesCleanUpFlag:
+    Type: String
+    Description: "Should Firewall Manager automatically remove protections from resources that leave the policy scope? (Not valid for Shield Advanced)"
+    AllowedValues:
+      - True
+      - False
   WAFv2ProtectRegionalResourceTypes:
     Type: String
     Default: AWS::ApiGateway::Stage,AWS::ElasticLoadBalancingV2::LoadBalancer
@@ -154,6 +166,7 @@ Resources:
         ACCOUNT:
           !If [ExcludeScopeFlag, !If [AccountScopeFlag,  !Split [",", !Ref ScopeDetails], !Ref "AWS::NoValue"], !Ref "AWS::NoValue"]
       RemediationEnabled: !If [AutoRemediateFlag, True, False]
+      ResourcesCleanUp: !Ref ResourcesCleanUpFlag
       DeleteAllPolicyResources: False
       ResourceTags:
         !If
@@ -179,7 +192,7 @@ Resources:
       SecurityServicePolicyData:
         Type: WAFV2
         ManagedServiceData: !Sub
-          - '{"type": "WAFV2", "preProcessRuleGroups":[{"ruleGroupArn": "${RateLimitRGArn}", "overrideAction": {"type": "NONE"}, "ruleGroupType":"RuleGroup", "excludeRules": [], "sampledRequestsEnabled": true}, {"managedRuleGroupIdentifier": {"vendorName": "AWS", "managedRuleGroupName":"AWSManagedRulesAmazonIpReputationList"}, "overrideAction": {"type": "${IPReputationActionValue}"},"ruleGroupType": "ManagedRuleGroup", "excludeRules":[], "sampledRequestsEnabled": true}, {"managedRuleGroupIdentifier": {"vendorName": "AWS", "managedRuleGroupName": "AWSManagedRulesAnonymousIpList"},"overrideAction": {"type": "${AnonymousIPActionValue}"}, "ruleGroupType": "ManagedRuleGroup", "excludeRules": [], "sampledRequestsEnabled": true},{"managedRuleGroupIdentifier": {"vendorName": "AWS", "managedRuleGroupName": "AWSManagedRulesKnownBadInputsRuleSet"}, "overrideAction": {"type": "${KnownBadInputsActionValue}"}, "ruleGroupType": "ManagedRuleGroup", "excludeRules": [], "sampledRequestsEnabled": true},{"managedRuleGroupIdentifier": {"vendorName": "AWS", "managedRuleGroupName": "AWSManagedRulesCommonRuleSet"}, "overrideAction": {"type": "${CoreRuleSetActionValue}"}, "ruleGroupType": "ManagedRuleGroup", "excludeRules": [], "sampledRequestsEnabled": true}],"postProcessRuleGroups": [], "defaultAction": {"type": "ALLOW"}, "overrideCustomerWebACLAssociation": ${AutoRemediateForceValue}, "sampledRequestsEnabledForDefaultActions": true,"loggingConfiguration": {"redactedFields": [],"logDestinationConfigs": ["${FirehoseArn}"]}}'
+          - '{"type": "WAFV2", "preProcessRuleGroups":[{"ruleGroupArn": "${RateLimitRGArn}", "overrideAction": {"type": "NONE"}, "ruleGroupType":"RuleGroup", "excludeRules": [], "sampledRequestsEnabled": true}, {"managedRuleGroupIdentifier": {"vendorName": "AWS", "managedRuleGroupName":"AWSManagedRulesAmazonIpReputationList"}, "overrideAction": {"type": "${IPReputationActionValue}"},"ruleGroupType": "ManagedRuleGroup", "excludeRules":[], "sampledRequestsEnabled": true}, {"managedRuleGroupIdentifier": {"vendorName": "AWS", "managedRuleGroupName": "AWSManagedRulesAnonymousIpList"},"overrideAction": {"type": "${AnonymousIPActionValue}"}, "ruleGroupType": "ManagedRuleGroup", "excludeRules": [], "sampledRequestsEnabled": true},{"managedRuleGroupIdentifier": {"vendorName": "AWS", "managedRuleGroupName": "AWSManagedRulesKnownBadInputsRuleSet"}, "overrideAction": {"type": "${KnownBadInputsActionValue}"}, "ruleGroupType": "ManagedRuleGroup", "excludeRules": [], "sampledRequestsEnabled": true},{"managedRuleGroupIdentifier": {"vendorName": "AWS", "managedRuleGroupName": "AWSManagedRulesCommonRuleSet"}, "overrideAction": {"type": "${CoreRuleSetActionValue}"}, "ruleGroupType": "ManagedRuleGroup", "excludeRules": [], "sampledRequestsEnabled": true}],"postProcessRuleGroups": [], "defaultAction": {"type": "ALLOW"}, "overrideCustomerWebACLAssociation": ${AutoRemediateForceValue}, "sampledRequestsEnabledForDefaultActions": true,"loggingConfiguration": {"redactedFields": [],"logDestinationConfigs": ["${FirehoseArn}"]}, "optimizeUnassociatedWebACL": ${optimizeUnassociatedWebACLValue}}'
           - RateLimitRGArn: !GetAtt RegionalRateLimitRuleGroup.Arn
             IPReputationActionValue: !If [IPReputationAMRActionFlag, 'NONE','COUNT']
             AnonymousIPActionValue: !If [AnonymousIPAMRActionFlag, 'NONE','COUNT']
@@ -208,6 +221,7 @@ Resources:
         ACCOUNT:
           !If [ExcludeScopeFlag, !If [AccountScopeFlag,  !Split [",", !Ref ScopeDetails], !Ref "AWS::NoValue"], !Ref "AWS::NoValue"]
       RemediationEnabled: !If [AutoRemediateFlag, true, false]
+      ResourcesCleanUp: !Ref ResourcesCleanUpFlag
       DeleteAllPolicyResources: false
       ResourceTags:
         !If
@@ -233,7 +247,7 @@ Resources:
       SecurityServicePolicyData:
         Type: WAFV2
         ManagedServiceData: !Sub
-          - '{"type": "WAFV2", "preProcessRuleGroups":[{"ruleGroupArn": "${RateLimitRGArn}", "overrideAction": {"type": "NONE"}, "ruleGroupType":"RuleGroup", "excludeRules": [], "sampledRequestsEnabled": true}, {"managedRuleGroupIdentifier": {"vendorName": "AWS", "managedRuleGroupName":"AWSManagedRulesAmazonIpReputationList"}, "overrideAction": {"type": "${IPReputationActionValue}"},"ruleGroupType": "ManagedRuleGroup", "excludeRules":[], "sampledRequestsEnabled": true}, {"managedRuleGroupIdentifier": {"vendorName": "AWS", "managedRuleGroupName": "AWSManagedRulesAnonymousIpList"},"overrideAction": {"type": "${AnonymousIPActionValue}"}, "ruleGroupType": "ManagedRuleGroup", "excludeRules": [], "sampledRequestsEnabled": true},{"managedRuleGroupIdentifier": {"vendorName": "AWS", "managedRuleGroupName": "AWSManagedRulesKnownBadInputsRuleSet"}, "overrideAction": {"type": "${KnownBadInputsActionValue}"}, "ruleGroupType": "ManagedRuleGroup", "excludeRules": [], "sampledRequestsEnabled": true},{"managedRuleGroupIdentifier": {"vendorName": "AWS", "managedRuleGroupName": "AWSManagedRulesCommonRuleSet"}, "overrideAction": {"type": "${CoreRuleSetActionValue}"}, "ruleGroupType": "ManagedRuleGroup", "excludeRules": [], "sampledRequestsEnabled": true}],"postProcessRuleGroups": [], "defaultAction": {"type": "ALLOW"}, "overrideCustomerWebACLAssociation": ${AutoRemediateForceValue}, "sampledRequestsEnabledForDefaultActions": true,"loggingConfiguration": {"redactedFields": [],"logDestinationConfigs": ["${FirehoseArn}"]}}'
+          - '{"type": "WAFV2", "preProcessRuleGroups":[{"ruleGroupArn": "${RateLimitRGArn}", "overrideAction": {"type": "NONE"}, "ruleGroupType":"RuleGroup", "excludeRules": [], "sampledRequestsEnabled": true}, {"managedRuleGroupIdentifier": {"vendorName": "AWS", "managedRuleGroupName":"AWSManagedRulesAmazonIpReputationList"}, "overrideAction": {"type": "${IPReputationActionValue}"},"ruleGroupType": "ManagedRuleGroup", "excludeRules":[], "sampledRequestsEnabled": true}, {"managedRuleGroupIdentifier": {"vendorName": "AWS", "managedRuleGroupName": "AWSManagedRulesAnonymousIpList"},"overrideAction": {"type": "${AnonymousIPActionValue}"}, "ruleGroupType": "ManagedRuleGroup", "excludeRules": [], "sampledRequestsEnabled": true},{"managedRuleGroupIdentifier": {"vendorName": "AWS", "managedRuleGroupName": "AWSManagedRulesKnownBadInputsRuleSet"}, "overrideAction": {"type": "${KnownBadInputsActionValue}"}, "ruleGroupType": "ManagedRuleGroup", "excludeRules": [], "sampledRequestsEnabled": true},{"managedRuleGroupIdentifier": {"vendorName": "AWS", "managedRuleGroupName": "AWSManagedRulesCommonRuleSet"}, "overrideAction": {"type": "${CoreRuleSetActionValue}"}, "ruleGroupType": "ManagedRuleGroup", "excludeRules": [], "sampledRequestsEnabled": true}],"postProcessRuleGroups": [], "defaultAction": {"type": "ALLOW"}, "overrideCustomerWebACLAssociation": ${AutoRemediateForceValue}, "sampledRequestsEnabledForDefaultActions": true,"loggingConfiguration": {"redactedFields": [],"logDestinationConfigs": ["${FirehoseArn}"]}, "optimizeUnassociatedWebACL": ${optimizeUnassociatedWebACLValue}}'
           - RateLimitRGArn: !GetAtt CloudFrontRateLimitRuleGroup.Arn
             IPReputationActionValue: !If [IPReputationAMRActionFlag, 'NONE','COUNT']
             AnonymousIPActionValue: !If [AnonymousIPAMRActionFlag, 'NONE','COUNT']
