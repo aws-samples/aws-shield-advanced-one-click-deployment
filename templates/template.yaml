@@ -85,7 +85,7 @@ Metadata:
         default: What type(s) of global resources should have AWS WAF protection
       ResourceTagUsage:
         default: If scope tags are specified, are these tags what to include (in scope) or are exclude ( out of scope)
-      optimizeUnassociatedWebACLValue:
+      OptimizeUnassociatedWebACLValue:
         default: if you want Firewall Manager to manage unassociated web ACLs, then enable Manage unassociated web ACLs
       ResourcesCleanUpFlag:
         default: Indicates whether AWS Firewall Manager should automatically remove protections from resources that leave the policy scope.
@@ -95,6 +95,10 @@ Metadata:
         default: Scope Details | Root Id or List of OUs or List of Accounts
       ScopeRegions:
         default: Specify which region(s) contain resources to protect
+      AccountFilterTypeValue:
+        default: Limit deployment targets
+      RootOrgID:
+        default: Root Id
       SRTAccessRoleName:
         default: If you enable SRT access, specify the IAM role name that SRT can assume.
       SRTAccessRoleAction:
@@ -147,6 +151,8 @@ Metadata:
       - Label:
           default: "Scope [Mandatory]"
         Parameters:
+          - RootOrgID
+          - AccountFilterTypeValue
           - ScopeType
           - ScopeDetails
           - IncludeExcludeScope
@@ -165,7 +171,7 @@ Metadata:
       - Label:
           default: "Firewall Manager policy options [Optional]"
         Parameters:
-          - optimizeUnassociatedWebACLValue
+          - OptimizeUnassociatedWebACLValue
           - ResourcesCleanUpFlag
       - Label:
           default: "AWS WAF v2 Configuration [Optional]"
@@ -382,7 +388,7 @@ Parameters:
     AllowedValues:
       - Include
       - Exclude
-  optimizeUnassociatedWebACLValue:
+  OptimizeUnassociatedWebACLValue:
     Type: String
     Default: False
     Description: "Should Firewall Manager manage unassociated web ACLs? if True Firewall Manager creates web ACLs in the accounts within policy scope only if the web ACLs will be used by at least one resource"
@@ -561,6 +567,18 @@ Parameters:
     AllowedValues:
     - Block
     - Count
+  AccountFilterTypeValue:
+    Type: String
+    Description: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-cloudformation-stackset-deploymenttargets.html#cfn-cloudformation-stackset-deploymenttargets-organizationalunitids
+    Default: NONE
+    AllowedValues:
+    - NONE
+    - INTERSECTION
+    - DIFFERENCE
+    - UNION
+  RootOrgID:
+    Type: CommaDelimitedList
+    Description: Specify root ID, e.g. r-1234
   ScopeRegions:
     Description: A comma separated list of AWS regions, e.g. us-east-1, us-east-2
     Type: CommaDelimitedList
@@ -600,9 +618,6 @@ Conditions:
       - "True"
       - !Ref AcknowledgeNoUnsubscribe
     FMSisSelfFlag: !Equals [!Ref FMSAdministratorAccount, "<Self>"]
-    OUOrOrgScopeFlag: !Or
-    - !Equals [!Ref ScopeType, "Org"]
-    - !Equals [!Ref ScopeType, "OU"]
     AccountScopeFlag: !Equals [!Ref ScopeType, "Accounts"]
 
 Resources:
@@ -622,15 +637,16 @@ Resources:
       StackSetName: !Sub "Subscribe-Configure-Shield-${AWS::StackName}"
       Description: Subscribe and Configure Core Shield Advanced Features
       TemplateURL: !Sub "https://code-oneclickshield-${AWS::AccountId}-${AWS::Region}.s3.amazonaws.com/shield-configure-subscribe.yaml"
-      PermissionModel: !If [OUOrOrgScopeFlag, "SERVICE_MANAGED", "SELF_MANAGED"]
+      PermissionModel: SERVICE_MANAGED
       CallAs: !Ref CallAs
       OperationPreferences:
         RegionConcurrencyType: PARALLEL
         MaxConcurrentCount: 10
       StackInstancesGroup:
         - DeploymentTargets:
+            AccountFilterType: !Ref AccountFilterTypeValue
             Accounts: !If [AccountScopeFlag, !Ref ScopeDetails, !Ref "AWS::NoValue"]
-            OrganizationalUnitIds: !If [AccountScopeFlag, !Ref "AWS::NoValue", !Ref ScopeDetails]
+            OrganizationalUnitIds: !If [AccountScopeFlag, !Ref RootOrgID, !Ref ScopeDetails]
           Regions:
             - !Ref "AWS::Region"
       Capabilities:
@@ -706,17 +722,17 @@ Resources:
       StackSetName: !Sub "FMS-Shield-${AWS::StackName}"
       Description: Create FMS Security Policy(s) to enable Shield Advanced Protection
       TemplateURL: !Sub "https://code-oneclickshield-${AWS::AccountId}-${AWS::Region}.s3.amazonaws.com/fms-shield.yaml"
-      PermissionModel: !If [OUOrOrgScopeFlag, "SERVICE_MANAGED", "SELF_MANAGED"]
+      PermissionModel: SERVICE_MANAGED
       CallAs: !Ref CallAs
       OperationPreferences:
         RegionConcurrencyType: PARALLEL
         MaxConcurrentCount: 10
       StackInstancesGroup:
         - DeploymentTargets:
-            AccountFilterType: !If [OUOrOrgScopeFlag, "INTERSECTION",!Ref "AWS::NoValue"]
+            AccountFilterType: INTERSECTION
             Accounts: 
             - !If [FMSisSelfFlag, !Ref "AWS::AccountId", !Ref FMSAdministratorAccount]
-            OrganizationalUnitIds: !If [OUOrOrgScopeFlag, !Ref ScopeDetails, !Ref "AWS::NoValue" ]
+            OrganizationalUnitIds: !Ref RootOrgID
           Regions: !Ref ScopeRegions
       Capabilities:
          - CAPABILITY_IAM
@@ -733,8 +749,8 @@ Resources:
           ParameterValue: !Ref "ScopeType"
         - ParameterKey: ResourceTagUsage
           ParameterValue: !Ref "ResourceTagUsage"
-        - ParameterKey: optimizeUnassociatedWebACLValue
-          ParameterValue: !Ref "optimizeUnassociatedWebACLValue"
+        - ParameterKey: OptimizeUnassociatedWebACLValue
+          ParameterValue: !Ref "OptimizeUnassociatedWebACLValue"
         - ParameterKey: ProtectRegionalResourceTypes
           ParameterValue: !Ref "ProtectRegionalResourceTypes"
         - ParameterKey: ProtectCloudFront
@@ -781,10 +797,10 @@ Resources:
         MaxConcurrentCount: 10
       StackInstancesGroup:
         - DeploymentTargets:
-            AccountFilterType: !If [OUOrOrgScopeFlag, "INTERSECTION",!Ref "AWS::NoValue"]
+            AccountFilterType: INTERSECTION
             Accounts:
             - !If [FMSisSelfFlag, !Ref "AWS::AccountId", !Ref FMSAdministratorAccount]
-            OrganizationalUnitIds: !If [OUOrOrgScopeFlag, !Ref ScopeDetails, !Ref "AWS::NoValue" ]
+            OrganizationalUnitIds: !Ref RootOrgID
           Regions: !Ref ScopeRegions
 
       Capabilities:
@@ -812,8 +828,8 @@ Resources:
           ParameterValue: !Ref "ScopeType"
         - ParameterKey: ResourceTagUsage
           ParameterValue: !Ref "ResourceTagUsage"
-        - ParameterKey: optimizeUnassociatedWebACLValue
-          ParameterValue: !Ref "optimizeUnassociatedWebACLValue"
+        - ParameterKey: OptimizeUnassociatedWebACLValue
+          ParameterValue: !Ref "OptimizeUnassociatedWebACLValue"
         - ParameterKey: ResourcesCleanUpFlag
           ParameterValue: !Ref "ResourcesCleanUpFlag"
         - ParameterKey: WAFv2ProtectRegionalResourceTypes
