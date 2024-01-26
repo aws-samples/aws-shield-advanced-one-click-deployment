@@ -85,6 +85,10 @@ Metadata:
         default: What type(s) of global resources should have AWS WAF protection
       ResourceTagUsage:
         default: If scope tags are specified, are these tags what to include (in scope) or are exclude ( out of scope)
+      optimizeUnassociatedWebACLValue:
+        default: if you want Firewall Manager to manage unassociated web ACLs, then enable Manage unassociated web ACLs
+      ResourcesCleanUpFlag:
+        default: Indicates whether AWS Firewall Manager should automatically remove protections from resources that leave the policy scope.
       FMSAdministratorAccount:
         default: What is the FMS Administrator/delegated Administrator if not the local account
       ScopeDetails:
@@ -158,6 +162,11 @@ Metadata:
           - WAFv2ProtectCloudFront
           - ShieldAutoRemediate
           - WAFv2AutoRemediate
+      - Label:
+          default: "Firewall Manager policy options [Optional]"
+        Parameters:
+          - optimizeUnassociatedWebACLValue
+          - ResourcesCleanUpFlag
       - Label:
           default: "AWS WAF v2 Configuration [Optional]"
         Parameters:
@@ -373,6 +382,20 @@ Parameters:
     AllowedValues:
       - Include
       - Exclude
+  optimizeUnassociatedWebACLValue:
+    Type: String
+    Default: False
+    Description: "Should Firewall Manager manage unassociated web ACLs? if True Firewall Manager creates web ACLs in the accounts within policy scope only if the web ACLs will be used by at least one resource"
+    AllowedValues:
+      - True
+      - False
+  ResourcesCleanUpFlag:
+    Type: String
+    Default: False
+    Description: "Should Firewall Manager automatically remove protections from resources that leave the policy scope? (Not valid for Shield Advanced)"
+    AllowedValues:
+      - True
+      - False
   ProtectRegionalResourceTypes:
     Type: String
     Description: Application Load Balancers | Classic Load Balancers | EIPs
@@ -710,6 +733,8 @@ Resources:
           ParameterValue: !Ref "ScopeType"
         - ParameterKey: ResourceTagUsage
           ParameterValue: !Ref "ResourceTagUsage"
+        - ParameterKey: optimizeUnassociatedWebACLValue
+          ParameterValue: !Ref "optimizeUnassociatedWebACLValue"
         - ParameterKey: ProtectRegionalResourceTypes
           ParameterValue: !Ref "ProtectRegionalResourceTypes"
         - ParameterKey: ProtectCloudFront
@@ -787,6 +812,10 @@ Resources:
           ParameterValue: !Ref "ScopeType"
         - ParameterKey: ResourceTagUsage
           ParameterValue: !Ref "ResourceTagUsage"
+        - ParameterKey: optimizeUnassociatedWebACLValue
+          ParameterValue: !Ref "optimizeUnassociatedWebACLValue"
+        - ParameterKey: ResourcesCleanUpFlag
+          ParameterValue: !Ref "ResourcesCleanUpFlag"
         - ParameterKey: WAFv2ProtectRegionalResourceTypes
           ParameterValue: !Ref "WAFv2ProtectRegionalResourceTypes"
         - ParameterKey: WAFv2ProtectCloudFront

@@ -149,8 +149,8 @@ Resources:
               kms:ViaService: !Sub "s3.${AWS::Region}.amazonaws.com"
             StringLike:
               "kms:EncryptionContext:aws:s3:arn":
-                - !Sub "arn:aws:s3:::${WafLogsS3Bucket.Arn}/*"
-                - !Sub "arn:aws:s3:::${LoggingS3Bucket.Arn}/*"
+                - !Sub "arn:aws:s3:::${WafLogsS3Bucket}/*"
+                - !Sub "arn:aws:s3:::${LoggingS3Bucket}/*"
         - Effect: Allow
           Action:
             - "s3:AbortMultipartUpload"
@@ -159,11 +159,12 @@ Resources:
             - "s3:ListBucket"
             - "s3:ListBucketMultipartUploads"
             - "s3:PutObject"
+            - "s3:PutObjectAcl"
           Resource:
-            - !Sub "arn:aws:s3:::${WafLogsS3Bucket.Arn}"
-            - !Sub "arn:aws:s3:::${WafLogsS3Bucket.Arn}/*"
-            - !Sub "arn:aws:s3:::${LoggingS3Bucket.Arn}"
-            - !Sub "arn:aws:s3:::${LoggingS3Bucket.Arn}/*"
+            - !Sub "arn:aws:s3:::${WafLogsS3Bucket}"
+            - !Sub "arn:aws:s3:::${WafLogsS3Bucket}/*"
+            - !Sub "arn:aws:s3:::${LoggingS3Bucket}"
+            - !Sub "arn:aws:s3:::${LoggingS3Bucket}/*"
         - Effect: Allow
           Action:
             - "logs:PutLogEvents"
