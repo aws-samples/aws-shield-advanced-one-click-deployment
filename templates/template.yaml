@@ -1,5 +1,6 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
+Description: One Click Deploy template lets you get started with AWS WAF and AWS Shield Advanced with recommended defaults (uksb-1tupboc51)
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterLabels:
