@@ -18,6 +18,12 @@ Parameters:
       - Org
       - OU
       - Accounts
+  OptimizeUnassociatedWebACLValue:
+    Type: String
+    Description: "Should Firewall Manager manage unassociated web ACLs? if True Firewall Manager creates web ACLs in the accounts within policy scope only if the web ACLs will be used by at least one resource"
+    AllowedValues:
+      - True
+      - False
   ResourceTagUsage:
     Type: String
     Default: Include
@@ -137,7 +143,7 @@ Resources:
         ManagedServiceData:
           !If 
           - RegionalAutomaticResourceFlag
-          - !Sub "{\"type\":\"SHIELD_ADVANCED\",\"automaticResponseConfiguration\": {\"automaticResponseStatus\":\"${RegionalAutomaticResponseStatus}\", \"automaticResponseAction\":\"${RegionalAutomaticResponseAction}\"}}"
+          - !Sub "{\"type\":\"SHIELD_ADVANCED\",\"automaticResponseConfiguration\": {\"automaticResponseStatus\":\"${RegionalAutomaticResponseStatus}\", \"automaticResponseAction\":\"${RegionalAutomaticResponseAction}\"}, \"optimizeUnassociatedWebACL\":${OptimizeUnassociatedWebACLValue}}"
           - !Ref "AWS::NoValue"
       DeleteAllPolicyResources: false
       ResourceTags:
@@ -186,7 +192,7 @@ Resources:
         ManagedServiceData:
           !If 
           - CloudFrontAutomaticResourceFlag
-          - !Sub "{\"type\":\"SHIELD_ADVANCED\",\"automaticResponseConfiguration\": {\"automaticResponseStatus\":\"${CloudFrontAutomaticResponseStatus}\", \"automaticResponseAction\":\"${CloudFrontAutomaticResponseAction}\"}}"
+          - !Sub "{\"type\":\"SHIELD_ADVANCED\",\"automaticResponseConfiguration\": {\"automaticResponseStatus\":\"${CloudFrontAutomaticResponseStatus}\", \"automaticResponseAction\":\"${CloudFrontAutomaticResponseAction}\"}, \"optimizeUnassociatedWebACL\":${OptimizeUnassociatedWebACLValue}}"
           - !Ref "AWS::NoValue"
       DeleteAllPolicyResources: false
       ResourceTags:     
