@@ -87,7 +87,7 @@ Metadata:
       ResourceTagUsage:
         default: If scope tags are specified, are these tags what to include (in scope) or are exclude ( out of scope)
       optimizeUnassociatedWebACLValue:
-        default: if you want Firewall Manager to manage unassociated web ACLs, then enable Manage unassociated web ACLs
+        default: If you want Firewall Manager to manage unassociated web ACLs, then enable Manage unassociated web ACLs
       ResourcesCleanUpFlag:
         default: Indicates whether AWS Firewall Manager should automatically remove protections from resources that leave the policy scope.
       FMSAdministratorAccount:
@@ -126,6 +126,8 @@ Metadata:
         default: WAFv2 protection tag Value
       WAFv2ScopeTagValue3:
         default: WAFv2 protection tag Value
+      UseLakeFormationPermissions:
+        default: If using AWS LakeFormation, should S3 permissions use LakeFormation or S3?  Only needed if you have enabled AWS LakeFormation
     ParameterGroups:
       -
         Label:
@@ -223,6 +225,11 @@ Metadata:
           - WAFv2ScopeTagValue2
           - WAFv2ScopeTagName3
           - WAFv2ScopeTagValue3
+      - Label:
+          default: "Misc"
+        Parameters:
+          - UseLakeFormationPermissions
+          - optimizeUnassociatedWebACLValue
 
 Parameters:
   FMSAdministratorAccount:
@@ -336,7 +343,7 @@ Parameters:
     AllowedPattern: ^[\w\s\.\-,:/()+@]*$|\<na\>
   EnabledProactiveEngagement:
     Type: String
-    Default: "True"
+    Default: "False"
     Description: Note you must also configure emergency contact(s) and health checks for protected resources for this feature to function.
     AllowedValues:
       - "True"
@@ -385,14 +392,14 @@ Parameters:
       - Exclude
   optimizeUnassociatedWebACLValue:
     Type: String
-    Default: False
+    Default: True
     Description: "Should Firewall Manager manage unassociated web ACLs? if True Firewall Manager creates web ACLs in the accounts within policy scope only if the web ACLs will be used by at least one resource"
     AllowedValues:
       - True
       - False
   ResourcesCleanUpFlag:
     Type: String
-    Default: False
+    Default: True
     Description: "Should Firewall Manager automatically remove protections from resources that leave the policy scope? (Not valid for Shield Advanced)"
     AllowedValues:
       - True
@@ -635,11 +642,11 @@ Resources:
           Regions:
             - !Ref "AWS::Region"
       Capabilities:
-         - CAPABILITY_IAM
-         - CAPABILITY_NAMED_IAM 
+        - CAPABILITY_IAM
+        - CAPABILITY_NAMED_IAM 
       AutoDeployment:
-        Enabled: True
-        RetainStacksOnAccountRemoval: False
+        Enabled: !If [OUOrOrgScopeFlag, True, !Ref "AWS::NoValue"]
+        RetainStacksOnAccountRemoval:  !If [OUOrOrgScopeFlag, False, !Ref "AWS::NoValue"]
       Parameters:
       - ParameterKey: AcknowledgeServiceTermsPricing
         ParameterValue: !Ref "AcknowledgeServiceTermsPricing"
@@ -720,8 +727,8 @@ Resources:
             OrganizationalUnitIds: !If [OUOrOrgScopeFlag, !Ref ScopeDetails, !Ref "AWS::NoValue" ]
           Regions: !Ref ScopeRegions
       Capabilities:
-         - CAPABILITY_IAM
-         - CAPABILITY_NAMED_IAM 
+        - CAPABILITY_IAM
+        - CAPABILITY_NAMED_IAM 
       AutoDeployment:
         Enabled: True
         RetainStacksOnAccountRemoval: False
@@ -787,10 +794,9 @@ Resources:
             - !If [FMSisSelfFlag, !Ref "AWS::AccountId", !Ref FMSAdministratorAccount]
             OrganizationalUnitIds: !If [OUOrOrgScopeFlag, !Ref ScopeDetails, !Ref "AWS::NoValue" ]
           Regions: !Ref ScopeRegions
-
       Capabilities:
-         - CAPABILITY_IAM
-         - CAPABILITY_NAMED_IAM 
+        - CAPABILITY_IAM
+        - CAPABILITY_NAMED_IAM 
       AutoDeployment:
         Enabled: True
         RetainStacksOnAccountRemoval: False
