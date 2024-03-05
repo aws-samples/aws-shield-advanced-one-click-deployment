@@ -254,7 +254,7 @@ Resources:
             - Name: labels
               Type: array<struct<name:string>>
   AthenaWorkGroup:
-    DeletionPolicy: Retain
+    #DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Type: AWS::Athena::WorkGroup
     Properties:
