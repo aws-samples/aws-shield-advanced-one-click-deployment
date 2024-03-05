@@ -730,8 +730,8 @@ Resources:
         - CAPABILITY_IAM
         - CAPABILITY_NAMED_IAM 
       AutoDeployment:
-        Enabled: True
-        RetainStacksOnAccountRemoval: False
+        Enabled: !If [OUOrOrgScopeFlag, True, !Ref "AWS::NoValue"]
+        RetainStacksOnAccountRemoval:  !If [OUOrOrgScopeFlag, False, !Ref "AWS::NoValue"]
       Parameters:
         - ParameterKey: ScopeDetails
           ParameterValue: !Join [",", !Ref "ScopeDetails"]
@@ -798,8 +798,8 @@ Resources:
         - CAPABILITY_IAM
         - CAPABILITY_NAMED_IAM 
       AutoDeployment:
-        Enabled: True
-        RetainStacksOnAccountRemoval: False
+        Enabled: !If [OUOrOrgScopeFlag, True, !Ref "AWS::NoValue"]
+        RetainStacksOnAccountRemoval:  !If [OUOrOrgScopeFlag, False, !Ref "AWS::NoValue"]
       Parameters:
         - ParameterKey: ScopeDetails
           ParameterValue: !Join [",", !Ref "ScopeDetails"]
