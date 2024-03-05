@@ -630,7 +630,7 @@ Resources:
       StackSetName: !Sub "Subscribe-Configure-Shield-${AWS::StackName}"
       Description: Subscribe and Configure Core Shield Advanced Features
       TemplateURL: !Sub "https://code-oneclickshield-${AWS::AccountId}-${AWS::Region}.s3.amazonaws.com/shield-configure-subscribe.yaml"
-      PermissionModel: SERVICE_MANAGED
+      PermissionModel: !If [OUOrOrgScopeFlag, "SERVICE_MANAGED", "SELF_MANAGED"]
       CallAs: !Ref CallAs
       OperationPreferences:
         RegionConcurrencyType: PARALLEL
@@ -645,8 +645,8 @@ Resources:
         - CAPABILITY_IAM
         - CAPABILITY_NAMED_IAM 
       AutoDeployment:
-        Enabled: True
-        RetainStacksOnAccountRemoval: False
+        Enabled: !If [OUOrOrgScopeFlag, True, !Ref "AWS::NoValue"]
+        RetainStacksOnAccountRemoval:  !If [OUOrOrgScopeFlag, False, !Ref "AWS::NoValue"]
       Parameters:
       - ParameterKey: AcknowledgeServiceTermsPricing
         ParameterValue: !Ref "AcknowledgeServiceTermsPricing"
@@ -714,7 +714,7 @@ Resources:
       StackSetName: !Sub "FMS-Shield-${AWS::StackName}"
       Description: Create FMS Security Policy(s) to enable Shield Advanced Protection
       TemplateURL: !Sub "https://code-oneclickshield-${AWS::AccountId}-${AWS::Region}.s3.amazonaws.com/fms-shield.yaml"
-      PermissionModel: SERVICE_MANAGED
+      PermissionModel: !If [OUOrOrgScopeFlag, "SERVICE_MANAGED", "SELF_MANAGED"]
       CallAs: !Ref CallAs
       OperationPreferences:
         RegionConcurrencyType: PARALLEL
@@ -730,8 +730,8 @@ Resources:
         - CAPABILITY_IAM
         - CAPABILITY_NAMED_IAM 
       AutoDeployment:
-        Enabled: True
-        RetainStacksOnAccountRemoval: False
+        Enabled: !If [OUOrOrgScopeFlag, True, !Ref "AWS::NoValue"]
+        RetainStacksOnAccountRemoval:  !If [OUOrOrgScopeFlag, False, !Ref "AWS::NoValue"]
       Parameters:
         - ParameterKey: ScopeDetails
           ParameterValue: !Join [",", !Ref "ScopeDetails"]
@@ -798,8 +798,8 @@ Resources:
         - CAPABILITY_IAM
         - CAPABILITY_NAMED_IAM 
       AutoDeployment:
-        Enabled: True
-        RetainStacksOnAccountRemoval: False
+        Enabled: !If [OUOrOrgScopeFlag, True, !Ref "AWS::NoValue"]
+        RetainStacksOnAccountRemoval:  !If [OUOrOrgScopeFlag, False, !Ref "AWS::NoValue"]
       Parameters:
         - ParameterKey: ScopeDetails
           ParameterValue: !Join [",", !Ref "ScopeDetails"]
