@@ -92,6 +92,8 @@ Metadata:
         default: Indicates whether AWS Firewall Manager should automatically remove protections from resources that leave the policy scope.
       FMSAdministratorAccount:
         default: What is the FMS Administrator/delegated Administrator if not the local account
+      S3BucketName:
+        default: If you want to use an existing S3 Bucket or have this create a new bucket for WAF logs.
       ScopeDetails:
         default: Scope Details | Root Id or List of OUs or List of Accounts
       ScopeRegions:
@@ -230,6 +232,7 @@ Metadata:
         Parameters:
           - UseLakeFormationPermissions
           - optimizeUnassociatedWebACLValue
+          - S3BucketName
 
 Parameters:
   FMSAdministratorAccount:
@@ -586,10 +589,15 @@ Parameters:
     - SELF
   UseLakeFormationPermissions:
     Type: String
-    Default: True
+    Default: False
     AllowedValues:
     - True
     - False
+  S3BucketName:
+    Type: String
+    Description: The name of an existing S3 bucket to send WAF logs.  If not configured, a bucket and policy is created
+    Default: <Generated>
+
 Conditions:
     AcceptedShieldTerms: !And
     - Fn::Equals:
@@ -614,13 +622,52 @@ Conditions:
     AccountScopeFlag: !Equals [!Ref ScopeType, "Accounts"]
 
 Resources:
-  S3IAMDelivereRoleStack:
-    Type: AWS::CloudFormation::Stack
+
+  S3IAMDelivereRoleStackSet:
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks:
+            - E3002
+    Type: 'AWS::CloudFormation::StackSet'
     Properties:
+      StackSetName: !Sub "S3-IAM-${AWS::StackName}"
+      Description: Creates a S3 bucket and IAM delivery role in the Firewall Manager Administrator Account
       TemplateURL: !Sub "https://code-oneclickshield-${AWS::AccountId}-${AWS::Region}.s3.amazonaws.com/s3iam.yaml"
+      PermissionModel: !If [OUOrOrgScopeFlag, "SERVICE_MANAGED", "SELF_MANAGED"]
+      CallAs: !Ref CallAs
+      OperationPreferences:
+        RegionConcurrencyType: PARALLEL
+        MaxConcurrentCount: 10
+      StackInstancesGroup:
+        - DeploymentTargets:
+            AccountFilterType: !If [OUOrOrgScopeFlag, "INTERSECTION",!Ref "AWS::NoValue"]
+            Accounts: 
+            - !If [FMSisSelfFlag, !Ref "AWS::AccountId", !Ref FMSAdministratorAccount]
+            OrganizationalUnitIds: !If [OUOrOrgScopeFlag, !Ref ScopeDetails, !Ref "AWS::NoValue" ]
+          Regions:
+          - !Ref AWS::Region
+      Capabilities:
+        - CAPABILITY_IAM
+        - CAPABILITY_NAMED_IAM 
+      AutoDeployment:
+        Enabled: !If [OUOrOrgScopeFlag, True, !Ref "AWS::NoValue"]
+        RetainStacksOnAccountRemoval:  !If [OUOrOrgScopeFlag, False, !Ref "AWS::NoValue"]
       Parameters:
-        ScopeRegions: !Join [",", !Ref ScopeRegions]
-        UseLakeFormationPermissions: !Ref UseLakeFormationPermissions
+        - ParameterKey: S3BucketName
+          ParameterValue: !Ref S3BucketName
+        - ParameterKey: ScopeRegions
+          ParameterValue: !Join [",", !Ref "ScopeRegions"]
+        - ParameterKey: UseLakeFormationPermissions
+          ParameterValue: !Ref UseLakeFormationPermissions
+
+#  S3IAMDelivereRoleStack:
+#    Type: AWS::CloudFormation::Stack
+#    Properties:
+#      TemplateURL: !Sub "https://code-oneclickshield-${AWS::AccountId}-${AWS::Region}.s3.amazonaws.com/s3iam.yaml"
+#      Parameters:
+#        ScopeRegions: !Join [",", !Ref ScopeRegions]
+#        UseLakeFormationPermissions: !Ref UseLakeFormationPermissions
   ShieldStackSet:
     Condition: AcceptedShieldTerms
     UpdateReplacePolicy: Delete
@@ -730,8 +777,8 @@ Resources:
         - CAPABILITY_IAM
         - CAPABILITY_NAMED_IAM 
       AutoDeployment:
-        Enabled: True
-        RetainStacksOnAccountRemoval: False
+        Enabled: !If [OUOrOrgScopeFlag, True, !Ref "AWS::NoValue"]
+        RetainStacksOnAccountRemoval:  !If [OUOrOrgScopeFlag, False, !Ref "AWS::NoValue"]
       Parameters:
         - ParameterKey: ScopeDetails
           ParameterValue: !Join [",", !Ref "ScopeDetails"]
@@ -775,6 +822,7 @@ Resources:
         config:
           ignore_checks:
             - E3002
+    DependsOn: S3IAMDelivereRoleStackSet
     UpdateReplacePolicy: Delete
     DeletionPolicy: Delete
     Type: 'AWS::CloudFormation::StackSet'
@@ -782,7 +830,7 @@ Resources:
       StackSetName: !Sub "FMS-WAF-${AWS::StackName}"
       Description: Create FMS Security Policy(s) to deploy AWS WAF
       TemplateURL: !Sub "https://code-oneclickshield-${AWS::AccountId}-${AWS::Region}.s3.amazonaws.com/fms-wafv2.yaml"
-      PermissionModel: SERVICE_MANAGED
+      PermissionModel: !If [OUOrOrgScopeFlag, "SERVICE_MANAGED", "SELF_MANAGED"]
       CallAs: !Ref CallAs
       OperationPreferences:
         RegionConcurrencyType: PARALLEL
@@ -798,19 +846,17 @@ Resources:
         - CAPABILITY_IAM
         - CAPABILITY_NAMED_IAM 
       AutoDeployment:
-        Enabled: True
-        RetainStacksOnAccountRemoval: False
+        Enabled: !If [OUOrOrgScopeFlag, True, !Ref "AWS::NoValue"]
+        RetainStacksOnAccountRemoval:  !If [OUOrOrgScopeFlag, False, !Ref "AWS::NoValue"]
       Parameters:
+        - ParameterKey: S3BucketName
+          ParameterValue: !Ref S3BucketName
+        - ParameterKey: PrimaryRegion
+          ParameterValue: !Ref "AWS::Region"
         - ParameterKey: ScopeDetails
           ParameterValue: !Join [",", !Ref "ScopeDetails"]
         - ParameterKey: TopStackName
           ParameterValue: !Ref "AWS::StackName"
-        - ParameterKey: WAFLogS3BucketName
-          ParameterValue: !GetAtt "S3IAMDelivereRoleStack.Outputs.WAFLogS3BucketName"
-        - ParameterKey: WAFDeliveryRoleArn
-          ParameterValue: !GetAtt "S3IAMDelivereRoleStack.Outputs.WAFDeliveryRoleArn"
-        - ParameterKey: WAFLogKMSKeyArn
-          ParameterValue: !GetAtt "S3IAMDelivereRoleStack.Outputs.WAFLogKMSKeyArn"
         - ParameterKey: WAFv2AutoRemediate
           ParameterValue: !Ref WAFv2AutoRemediate
         - ParameterKey: IncludeExcludeScope

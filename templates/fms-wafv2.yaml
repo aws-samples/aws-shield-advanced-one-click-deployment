@@ -1,6 +1,9 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
 Parameters:
+  PrimaryRegion:
+    Type: String
+    Description: This region is used to find the S3 Bucket and KMS key for the Kinesis Delivery Stream
   TopStackName:
     Type: String
   ScopeDetails:
@@ -23,6 +26,7 @@ Parameters:
   optimizeUnassociatedWebACLValue:
     Type: String
     Description: "Should Firewall Manager manage unassociated web ACLs? if True Firewall Manager creates web ACLs in the accounts within policy scope only if the web ACLs will be used by at least one resource"
+    Default: True
     AllowedValues:
       - True
       - False
@@ -36,6 +40,7 @@ Parameters:
   ResourcesCleanUpFlag:
     Type: String
     Description: "Should Firewall Manager automatically remove protections from resources that leave the policy scope? (Not valid for Shield Advanced)"
+    Default: True
     AllowedValues:
       - True
       - False
@@ -56,6 +61,7 @@ Parameters:
   WAFv2AutoRemediate:
     Type: String
     Description: "Should in scope AWS resource types that support AWS WAF automatically be remediated?"
+    Default: "No"
     AllowedValues:
       - "Yes | Replace existing exsiting WebACL"
       - "Yes | If no current WebACL"
@@ -116,11 +122,7 @@ Parameters:
     AllowedValues:
     - Block
     - Count
-  WAFLogS3BucketName:
-    Type: String
-  WAFDeliveryRoleArn:
-    Type: String
-  WAFLogKMSKeyArn:
+  S3BucketName:
     Type: String
 Conditions:
     ScopeTagName1Flag: !Not [!Equals [!Ref ScopeTagName1, "<na>"]]
@@ -175,17 +177,17 @@ Resources:
           - !If
             - ScopeTagName1Flag
             - Key:  !Ref ScopeTagName1
-              Value: !If [ScopeTagName1Flag, !Ref ScopeTagValue1, ""]
+              Value: !If [ScopeTagValue1Flag, !Ref ScopeTagValue1, ""]
             - !Ref "AWS::NoValue"
           - !If
             - ScopeTagName2Flag
             - Key:  !Ref ScopeTagName2
-              Value: !If [ScopeTagName2Flag, !Ref ScopeTagValue2, ""]
+              Value: !If [ScopeTagValue2Flag, !Ref ScopeTagValue2, ""]
             - !Ref "AWS::NoValue"
           - !If
             - ScopeTagName3Flag
             - Key:  !Ref ScopeTagName3
-              Value: !If [ScopeTagName3Flag, !Ref ScopeTagValue3, ""]
+              Value: !If [ScopeTagValue3Flag, !Ref ScopeTagValue3, ""]
             - !Ref "AWS::NoValue"
         - !Ref "AWS::NoValue"
 
@@ -308,13 +310,13 @@ Resources:
             SampledRequestsEnabled: true
             CloudWatchMetricsEnabled: true
             MetricName: RateLimit
-
   WAFDeliveryLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub "/aws/kinesisfirehose/${AWS::StackName}"
       KmsKeyId: !GetAtt KMSKey.Arn
       RetentionInDays: 365
+
   WAFDeliveryLogStream:
     DependsOn: WAFDeliveryLogGroup
     Type: AWS::Logs::LogStream
@@ -334,7 +336,7 @@ Resources:
         KeyARN: !GetAtt KMSKey.Arn
         KeyType: CUSTOMER_MANAGED_CMK
       ExtendedS3DestinationConfiguration:
-        BucketARN: !Sub "arn:aws:s3:::${WAFLogS3BucketName}"
+        BucketARN: !Sub "arn:aws:s3:::${CallRetrieveFirehoseMetadata.S3BucketName}"
         CloudWatchLoggingOptions:
           Enabled: true
           LogGroupName: !Sub "/aws/kinesisfirehose/${AWS::StackName}"
@@ -345,9 +347,9 @@ Resources:
         CompressionFormat: UNCOMPRESSED
         EncryptionConfiguration:
           KMSEncryptionConfig:
-            AWSKMSKeyARN: !Ref "WAFLogKMSKeyArn"
+            AWSKMSKeyARN: !GetAtt CallRetrieveFirehoseMetadata.KmsArn
         Prefix: !Sub 'firehose/${AWS::Region}/'
-        RoleARN: !Ref WAFDeliveryRoleArn
+        RoleARN: !GetAtt CallRetrieveFirehoseMetadata.RoleArn
   KMSKey:
     Type: AWS::KMS::Key
     Properties:
@@ -378,3 +380,117 @@ Resources:
           Condition:
             ArnEquals:
               "kms:EncryptionContext:aws:logs:arn": !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/kinesisfirehose/${AWS::StackName}"
+
+  RetrieveFirehoseMetadataLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+  RetrieveFirehoseMetadataLambdaPolicy:
+    Type: 'AWS::IAM::Policy'
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W12
+            reason: "Wildcard IAM policy required, APIs do not support resource scoping"
+          - id: W58
+            reason: "CFN Nag checks for managed policy, permissions granted inline"
+    Properties:
+      PolicyName: RetrieveFirehoseMetadataLambdaPolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - "logs:CreateLogGroup"
+              - "logs:CreateLogStream"
+              - "logs:PutLogEvents"
+            Resource: "arn:aws:logs:*:*:*"
+          - Effect: Allow
+            Action:
+              - ssm:GetParameter
+            Resource: !Sub "arn:aws:ssm:${PrimaryRegion}:${AWS::AccountId}:parameter/shield-one-click-deployment/waf-log-destination"
+      Roles:
+        - !Ref RetrieveFirehoseMetadataLambdaRole
+
+  CallRetrieveFirehoseMetadata:
+    DependsOn: RetrieveFirehoseMetadataLambdaPolicy
+    Type: Custom::RetrieveFirehoseMetadata
+    Properties:
+      ServiceToken: !GetAtt RetrieveFirehoseMetadataLambda.Arn
+      S3BucketName: !Ref S3BucketName #This is not used, but if you change the name this resource needs to update so we include it.
+
+  RetrieveFirehoseMetadataLambda:
+    Type: AWS::Lambda::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: "Permissions granted, CFN_Nag not parsing correctly?"
+          - id: W89
+            reason: "Not applicable for use case"
+          - id: W92
+            reason: "Not applicable for use case"
+    Properties:
+      TracingConfig:
+        Mode: Active
+      Runtime: python3.12
+      Timeout: 15
+      Role: !GetAtt RetrieveFirehoseMetadataLambdaRole.Arn
+      Handler: index.lambda_handler
+      Environment:
+        Variables:
+          PrimaryRegion: !Ref PrimaryRegion
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+          import os
+          import botocore
+          import cfnresponse
+          import logging
+
+          logger = logging.getLogger('ssm-cross-region-help')
+          logger.setLevel('DEBUG')
+
+          primary_region = os.environ.get('PrimaryRegion')
+          account_id = boto3.client('sts').get_caller_identity().get('Account')
+
+          ssm_client = boto3.client('ssm', region_name=primary_region)
+
+          def lambda_handler(event, context):
+              print (json.dumps(event))
+              responseData = {}
+              if "RequestType" in event:
+                  if event['RequestType'] in ['Create','Update']:
+                      ssm_arn = f"arn:aws:ssm:{primary_region}:{account_id}:parameter/shield-one-click-deployment/waf-log-destination"
+                      try:
+                          logger.debug(f"Start retrieving SSM Parameter for {ssm_arn}")
+                          response = ssm_client.get_parameter(
+                              Name=ssm_arn,
+                              WithDecryption=True).get('Parameter',{}).get('Value',False)
+                          print (response)
+                          print (type(response))
+                          responseData.update(json.loads(response))
+                          #responseData['Data']['LoggingConfig'] = json.loads(response)
+                          responseData['Message'] = "Retrived config successfully Created"
+                          print (f"Sending Response Data: {responseData}")
+                          cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData, "Retrived Value")
+                          return
+                      except botocore.exceptions.ClientError as error:
+                          logger.error(error.response['Error'])
+                          responseData['Message'] = error.response['Error']
+                          cfnresponse.send(event, context, cfnresponse.FAILED, responseData, "SubscribeFailed")
+                          return
+                  else:
+                      responseData['Message'] = "CFN Delete, no action taken"
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData, "CFNDeleteGracefulContinue")
+                      return

@@ -260,7 +260,7 @@ Resources:
     Properties:
       TracingConfig:
         Mode: Active
-      Runtime: python3.9
+      Runtime: python3.12
       Timeout: 15
       Role: !GetAtt ConfigureShieldLambdaRole.Arn
       Handler: index.lambda_handler
