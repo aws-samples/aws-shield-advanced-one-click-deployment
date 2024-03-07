@@ -13,6 +13,9 @@ Parameters:
     Type: String
     Description: The name of an existing S3 bucket to send WAF logs.  If not configured, a bucket and policy is created
     Default: <Generated>
+  TopStackName:
+    Type: String
+    Description: Used to prefix resources that require an explicit name to be provided
 Conditions:
   CreateLakeFormationPermissions: !Equals [!Ref UseLakeFormationPermissions, True]
   NoCreateLakeFormationPermissions: !Equals [!Ref UseLakeFormationPermissions, False]
@@ -304,7 +307,7 @@ Resources:
     UpdateReplacePolicy: Retain
     Type: AWS::Athena::WorkGroup
     Properties:
-      Name: 'oneclickshieldwaf-Workgroup'
+      Name: !Sub '${TopStackName}-Workgroup'
       State: ENABLED
       WorkGroupConfiguration:
         EnforceWorkGroupConfiguration: false

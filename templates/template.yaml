@@ -597,7 +597,9 @@ Parameters:
     Type: String
     Description: The name of an existing S3 bucket to send WAF logs.  If not configured, a bucket and policy is created
     Default: <Generated>
-
+  RootId:
+    Type: CommaDelimitedList
+    Description: AWS Organizations root id, e.g. r-1234
 Conditions:
     AcceptedShieldTerms: !And
     - Fn::Equals:
@@ -622,7 +624,6 @@ Conditions:
     AccountScopeFlag: !Equals [!Ref ScopeType, "Accounts"]
 
 Resources:
-
   S3IAMDelivereRoleStackSet:
     Metadata:
       cfn-lint:
@@ -634,25 +635,25 @@ Resources:
       StackSetName: !Sub "S3-IAM-${AWS::StackName}"
       Description: Creates a S3 bucket and IAM delivery role in the Firewall Manager Administrator Account
       TemplateURL: !Sub "https://code-oneclickshield-${AWS::AccountId}-${AWS::Region}.s3.amazonaws.com/s3iam.yaml"
-      PermissionModel: !If [OUOrOrgScopeFlag, "SERVICE_MANAGED", "SELF_MANAGED"]
+      PermissionModel: SERVICE_MANAGED
       CallAs: !Ref CallAs
       OperationPreferences:
         RegionConcurrencyType: PARALLEL
         MaxConcurrentCount: 10
       StackInstancesGroup:
         - DeploymentTargets:
-            AccountFilterType: !If [OUOrOrgScopeFlag, "INTERSECTION",!Ref "AWS::NoValue"]
+            AccountFilterType: "INTERSECTION"
             Accounts: 
-            - !If [FMSisSelfFlag, !Ref "AWS::AccountId", !Ref FMSAdministratorAccount]
-            OrganizationalUnitIds: !If [OUOrOrgScopeFlag, !Ref ScopeDetails, !Ref "AWS::NoValue" ]
+            - !If [FMSisSelfFlag, !Ref "AWS::AccountId", !Ref "FMSAdministratorAccount"]
+            OrganizationalUnitIds: !Ref "RootId"
           Regions:
           - !Ref AWS::Region
       Capabilities:
         - CAPABILITY_IAM
         - CAPABILITY_NAMED_IAM 
       AutoDeployment:
-        Enabled: !If [OUOrOrgScopeFlag, True, !Ref "AWS::NoValue"]
-        RetainStacksOnAccountRemoval:  !If [OUOrOrgScopeFlag, False, !Ref "AWS::NoValue"]
+        Enabled: True
+        RetainStacksOnAccountRemoval: False
       Parameters:
         - ParameterKey: S3BucketName
           ParameterValue: !Ref S3BucketName
@@ -660,14 +661,8 @@ Resources:
           ParameterValue: !Join [",", !Ref "ScopeRegions"]
         - ParameterKey: UseLakeFormationPermissions
           ParameterValue: !Ref UseLakeFormationPermissions
-
-#  S3IAMDelivereRoleStack:
-#    Type: AWS::CloudFormation::Stack
-#    Properties:
-#      TemplateURL: !Sub "https://code-oneclickshield-${AWS::AccountId}-${AWS::Region}.s3.amazonaws.com/s3iam.yaml"
-#      Parameters:
-#        ScopeRegions: !Join [",", !Ref ScopeRegions]
-#        UseLakeFormationPermissions: !Ref UseLakeFormationPermissions
+        - ParameterKey: TopStackName
+          ParameterValue: !Ref "AWS::StackName"
   ShieldStackSet:
     Condition: AcceptedShieldTerms
     UpdateReplacePolicy: Delete
@@ -677,23 +672,24 @@ Resources:
       StackSetName: !Sub "Subscribe-Configure-Shield-${AWS::StackName}"
       Description: Subscribe and Configure Core Shield Advanced Features
       TemplateURL: !Sub "https://code-oneclickshield-${AWS::AccountId}-${AWS::Region}.s3.amazonaws.com/shield-configure-subscribe.yaml"
-      PermissionModel: !If [OUOrOrgScopeFlag, "SERVICE_MANAGED", "SELF_MANAGED"]
+      PermissionModel: SERVICE_MANAGED
       CallAs: !Ref CallAs
       OperationPreferences:
         RegionConcurrencyType: PARALLEL
         MaxConcurrentCount: 10
       StackInstancesGroup:
         - DeploymentTargets:
+            AccountFilterType: !If [AccountScopeFlag, "INTERSECTION",!Ref "AWS::NoValue"]
             Accounts: !If [AccountScopeFlag, !Ref ScopeDetails, !Ref "AWS::NoValue"]
-            OrganizationalUnitIds: !If [AccountScopeFlag, !Ref "AWS::NoValue", !Ref ScopeDetails]
+            OrganizationalUnitIds: !If [AccountScopeFlag, !Ref RootId, !Ref ScopeDetails]
           Regions:
             - !Ref "AWS::Region"
       Capabilities:
         - CAPABILITY_IAM
         - CAPABILITY_NAMED_IAM 
       AutoDeployment:
-        Enabled: !If [OUOrOrgScopeFlag, True, !Ref "AWS::NoValue"]
-        RetainStacksOnAccountRemoval:  !If [OUOrOrgScopeFlag, False, !Ref "AWS::NoValue"]
+        Enabled: True
+        RetainStacksOnAccountRemoval: False
       Parameters:
       - ParameterKey: AcknowledgeServiceTermsPricing
         ParameterValue: !Ref "AcknowledgeServiceTermsPricing"
@@ -761,24 +757,24 @@ Resources:
       StackSetName: !Sub "FMS-Shield-${AWS::StackName}"
       Description: Create FMS Security Policy(s) to enable Shield Advanced Protection
       TemplateURL: !Sub "https://code-oneclickshield-${AWS::AccountId}-${AWS::Region}.s3.amazonaws.com/fms-shield.yaml"
-      PermissionModel: !If [OUOrOrgScopeFlag, "SERVICE_MANAGED", "SELF_MANAGED"]
+      PermissionModel: SERVICE_MANAGED
       CallAs: !Ref CallAs
       OperationPreferences:
         RegionConcurrencyType: PARALLEL
         MaxConcurrentCount: 10
       StackInstancesGroup:
         - DeploymentTargets:
-            AccountFilterType: !If [OUOrOrgScopeFlag, "INTERSECTION",!Ref "AWS::NoValue"]
+            AccountFilterType: "INTERSECTION"
             Accounts: 
-            - !If [FMSisSelfFlag, !Ref "AWS::AccountId", !Ref FMSAdministratorAccount]
-            OrganizationalUnitIds: !If [OUOrOrgScopeFlag, !Ref ScopeDetails, !Ref "AWS::NoValue" ]
+            - !If [FMSisSelfFlag, !Ref "AWS::AccountId", !Ref "FMSAdministratorAccount"]
+            OrganizationalUnitIds: !Ref "RootId"
           Regions: !Ref ScopeRegions
       Capabilities:
         - CAPABILITY_IAM
         - CAPABILITY_NAMED_IAM 
       AutoDeployment:
-        Enabled: !If [OUOrOrgScopeFlag, True, !Ref "AWS::NoValue"]
-        RetainStacksOnAccountRemoval:  !If [OUOrOrgScopeFlag, False, !Ref "AWS::NoValue"]
+        Enabled: True
+        RetainStacksOnAccountRemoval: False
       Parameters:
         - ParameterKey: ScopeDetails
           ParameterValue: !Join [",", !Ref "ScopeDetails"]
@@ -830,24 +826,24 @@ Resources:
       StackSetName: !Sub "FMS-WAF-${AWS::StackName}"
       Description: Create FMS Security Policy(s) to deploy AWS WAF
       TemplateURL: !Sub "https://code-oneclickshield-${AWS::AccountId}-${AWS::Region}.s3.amazonaws.com/fms-wafv2.yaml"
-      PermissionModel: !If [OUOrOrgScopeFlag, "SERVICE_MANAGED", "SELF_MANAGED"]
+      PermissionModel: SERVICE_MANAGED
       CallAs: !Ref CallAs
       OperationPreferences:
         RegionConcurrencyType: PARALLEL
         MaxConcurrentCount: 10
       StackInstancesGroup:
         - DeploymentTargets:
-            AccountFilterType: !If [OUOrOrgScopeFlag, "INTERSECTION",!Ref "AWS::NoValue"]
-            Accounts:
-            - !If [FMSisSelfFlag, !Ref "AWS::AccountId", !Ref FMSAdministratorAccount]
-            OrganizationalUnitIds: !If [OUOrOrgScopeFlag, !Ref ScopeDetails, !Ref "AWS::NoValue" ]
+            AccountFilterType: "INTERSECTION"
+            Accounts: 
+            - !If [FMSisSelfFlag, !Ref "AWS::AccountId", !Ref "FMSAdministratorAccount"]
+            OrganizationalUnitIds: !Ref "RootId"
           Regions: !Ref ScopeRegions
       Capabilities:
         - CAPABILITY_IAM
         - CAPABILITY_NAMED_IAM 
       AutoDeployment:
-        Enabled: !If [OUOrOrgScopeFlag, True, !Ref "AWS::NoValue"]
-        RetainStacksOnAccountRemoval:  !If [OUOrOrgScopeFlag, False, !Ref "AWS::NoValue"]
+        Enabled: True
+        RetainStacksOnAccountRemoval: False
       Parameters:
         - ParameterKey: S3BucketName
           ParameterValue: !Ref S3BucketName

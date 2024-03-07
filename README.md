@@ -112,7 +112,7 @@ fi
 
 aws s3 sync ./templates/ s3://$BucketName --include "./*.yaml" --exclude ".git/*"
 
-echo -e "\033[0;32mOpen this link to start deploying the CloudFormation Template: \033[0;34m\nhttps://$region.console.aws.amazon.com/cloudformation/home?region=$region#/stacks/quickcreate?templateURL=https%3A%2F%2Fs3.$region.amazonaws.com%2F$BucketName%2Ftemplate.yaml&stackName=aws-shield-advanced-one-click-deploy&param_IncludeGlobalResourceTypes=false&param_ResourceTypes=%3CAll%3E&param_NotificationEmail=%3CNone%3E&param_TopicArn=%3CNew%20Topic%3E&param_DeliveryChannelName=%3CGenerated%3E&param_PrimaryRegion=&param_S3KeyPrefix=%3CNo%20Prefix%3E&param_Frequency=24hours&param_SNS=true&param_AllSupported=true&param_S3BucketName=%3CNew%20Bucket%3E&param_ScopeDetails=$rootId&param_CallAs=$callAs&param_ScopeRegions=$region&param_FMSAdministratorAccount=$FMSAdminValue"
+echo -e "\033[0;32mOpen this link to start deploying the CloudFormation Template: \033[0;34m\nhttps://$region.console.aws.amazon.com/cloudformation/home?region=$region#/stacks/quickcreate?templateURL=https%3A%2F%2Fs3.$region.amazonaws.com%2F$BucketName%2Ftemplate.yaml&stackName=aws-shield-advanced-one-click-deploy&param_IncludeGlobalResourceTypes=false&param_ResourceTypes=%3CAll%3E&param_NotificationEmail=%3CNone%3E&param_TopicArn=%3CNew%20Topic%3E&param_DeliveryChannelName=%3CGenerated%3E&param_PrimaryRegion=&param_S3KeyPrefix=%3CNo%20Prefix%3E&param_Frequency=24hours&param_SNS=true&param_AllSupported=true&param_S3BucketName=%3CNew%20Bucket%3E&param_ScopeDetails=$rootId&param_RootId=$rootId&param_CallAs=$callAs&param_ScopeRegions=$region&param_FMSAdministratorAccount=$FMSAdminValue"
 
 
 ```
@@ -718,3 +718,43 @@ For Firewall Manager Security policies for WAFv2 protection, one or more tag nam
     Required: No
     Type: String
     Default: <na>
+
+--- 
+
+## Misc **[Optional]**
+
+**UseLakeFormationPermissions**  
+If using AWS LakeFormation, should S3 permissions use LakeFormation or S3? Only needed if you have enabled AWS LakeFormation.
+
+    Required: No
+    Type: String
+    Default: False
+    AllowedValues:
+      - True
+      - False
+
+**optimizeUnassociatedWebACLValue**  
+If you want Firewall Manager to manage unassociated web ACLs, then enable Manage unassociated web ACLs.
+
+    Required: No
+    Type: String
+    Default: True
+    AllowedValues:
+      - True
+      - False
+
+**S3BucketName**  
+If you want to use an existing S3 Bucket or have this create a new bucket for WAF logs.  Specify <Generated> to have a bucket created.
+
+    Required: No
+    Type: String
+    Default: <Generated>
+
+**RootId**  
+Specify the AWS Organization Root Id.  StackSets to deploy FMS and potentially scope FMS to accounts using Service Managed StackSets requires providing an OU/root and then list of accounts to only target.  You can retrieve your root ID from the payer or an AWS Organizations delegated administrator of your AWS Organization.
+
+> aws organizations list-roots --query Roots[0]."Id"
+> r-1a2b
+
+    Required: No
+    Type: String
