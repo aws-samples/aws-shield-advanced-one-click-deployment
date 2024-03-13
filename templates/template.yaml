@@ -93,7 +93,7 @@ Metadata:
       FMSAdministratorAccount:
         default: What is the FMS Administrator/delegated Administrator if not the local account
       S3BucketName:
-        default: If you want to use an existing S3 Bucket or have this create a new bucket for WAF logs.
+        default: If you want to use an existing S3 Bucket or have this create a new bucket for WAF logs.  This bucket MUST be in the same region you deploy this CloudFormation Stack.
       ScopeDetails:
         default: Scope Details | Root Id or List of OUs or List of Accounts
       ScopeRegions:
@@ -622,7 +622,15 @@ Conditions:
     - !Equals [!Ref ScopeType, "Org"]
     - !Equals [!Ref ScopeType, "OU"]
     AccountScopeFlag: !Equals [!Ref ScopeType, "Accounts"]
-
+    #If deploying from the payer account and FMS is also the payer account, we need to deploy three of the StackSets as self managed StackSets instead of Service Managed
+    FMSIsPayer: !And
+      - !Equals [!Ref CallAs, "SELF"]
+      - !Or
+        - !Equals [!Ref FMSAdministratorAccount, !Ref "AWS::AccountId"]
+        - !Equals [!Ref FMSAdministratorAccount, "<Self>"]
+    FMSisPayerAcceptedShieldTerms: !And
+      - !Condition FMSIsPayer
+      - !Condition AcceptedShieldTerms
 Resources:
   S3IAMDelivereRoleStackSet:
     Metadata:
@@ -631,29 +639,53 @@ Resources:
           ignore_checks:
             - E3002
     Type: 'AWS::CloudFormation::StackSet'
+    DependsOn: StackSetExecutionRole
+    Condition: AcceptedShieldTerms
     Properties:
       StackSetName: !Sub "S3-IAM-${AWS::StackName}"
       Description: Creates a S3 bucket and IAM delivery role in the Firewall Manager Administrator Account
       TemplateURL: !Sub "https://code-oneclickshield-${AWS::AccountId}-${AWS::Region}.s3.amazonaws.com/s3iam.yaml"
-      PermissionModel: SERVICE_MANAGED
+      PermissionModel: !If [FMSIsPayer, SELF_MANAGED, SERVICE_MANAGED]
+      AdministrationRoleARN: !If
+        - FMSIsPayer
+        - !GetAtt StackSetAdminRole.Arn
+        - !Ref "AWS::NoValue"
+      ExecutionRoleName: !If
+        - FMSIsPayer
+        - !Sub "${AWS::StackName}-ExecutionRole"
+        - !Ref "AWS::NoValue"
       CallAs: !Ref CallAs
       OperationPreferences:
         RegionConcurrencyType: PARALLEL
         MaxConcurrentCount: 10
-      StackInstancesGroup:
-        - DeploymentTargets:
-            AccountFilterType: "INTERSECTION"
-            Accounts: 
-            - !If [FMSisSelfFlag, !Ref "AWS::AccountId", !Ref "FMSAdministratorAccount"]
-            OrganizationalUnitIds: !Ref "RootId"
-          Regions:
-          - !Ref AWS::Region
+      StackInstancesGroup: !If
+        - FMSIsPayer
+        -
+          - DeploymentTargets:
+              Accounts:
+              - !Ref "AWS::AccountId"
+            Regions:
+              - !Ref "AWS::Region"
+        -
+          - DeploymentTargets:
+              AccountFilterType: "INTERSECTION"
+              Accounts: !If
+                - FMSisSelfFlag
+                - 
+                  - !Ref AWS::AccountId
+                - 
+                  - !Ref FMSAdministratorAccount
+              OrganizationalUnitIds: !Ref ScopeDetails
+            Regions:
+              - !Ref "AWS::Region"
       Capabilities:
         - CAPABILITY_IAM
         - CAPABILITY_NAMED_IAM 
-      AutoDeployment:
-        Enabled: True
-        RetainStacksOnAccountRemoval: False
+      AutoDeployment: !If
+        - FMSIsPayer
+        - !Ref "AWS::NoValue"
+        - Enabled: True
+          RetainStacksOnAccountRemoval: False
       Parameters:
         - ParameterKey: S3BucketName
           ParameterValue: !Ref S3BucketName
@@ -663,6 +695,40 @@ Resources:
           ParameterValue: !Ref UseLakeFormationPermissions
         - ParameterKey: TopStackName
           ParameterValue: !Ref "AWS::StackName"
+  #In the event the Firewall Manager account is this account and the payer, the Service Managed StackSet cannot deploy to it, we therefore need to configure Shield Advanced with a separate stack
+  FMSIsPayerShieldConfigure:
+    Condition: FMSisPayerAcceptedShieldTerms
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://code-oneclickshield-${AWS::AccountId}-${AWS::Region}.s3.amazonaws.com/shield-configure-subscribe.yaml"
+      Parameters:
+        AcknowledgeServiceTermsPricing: !Ref "AcknowledgeServiceTermsPricing"
+        AcknowledgeServiceTermsDTO: !Ref "AcknowledgeServiceTermsDTO"
+        AcknowledgeServiceTermsCommitment: !Ref "AcknowledgeServiceTermsCommitment"
+        AcknowledgeServiceTermsAutoRenew: !Ref "AcknowledgeServiceTermsAutoRenew"
+        AcknowledgeNoUnsubscribe: !Ref "AcknowledgeNoUnsubscribe"
+        EmergencyContactEmail1: !Ref "EmergencyContactEmail1"
+        EmergencyContactEmail2: !Ref "EmergencyContactEmail2"
+        EmergencyContactEmail3: !Ref "EmergencyContactEmail3"
+        EmergencyContactEmail4: !Ref "EmergencyContactEmail4"
+        EmergencyContactEmail5: !Ref "EmergencyContactEmail5"
+        EmergencyContactPhone1: !Ref "EmergencyContactPhone1"
+        EmergencyContactPhone2: !Ref "EmergencyContactPhone2"
+        EmergencyContactPhone3: !Ref "EmergencyContactPhone3"
+        EmergencyContactPhone4: !Ref "EmergencyContactPhone4"
+        EmergencyContactPhone5: !Ref "EmergencyContactPhone5"
+        EmergencyContactNote1: !Ref "EmergencyContactNote1"
+        EmergencyContactNote2: !Ref "EmergencyContactNote2"
+        EmergencyContactNote3: !Ref "EmergencyContactNote3"
+        EmergencyContactNote4: !Ref "EmergencyContactNote4"
+        EmergencyContactNote5: !Ref "EmergencyContactNote5"
+        EnabledProactiveEngagement: !Ref "EnabledProactiveEngagement"
+        SRTBuckets: !Join [",", !Ref "SRTBuckets"]
+        SRTAccessRoleName: !Ref "SRTAccessRoleName"
+        SRTAccessRoleAction: !Ref "SRTAccessRoleAction"
+        EnableSRTAccess: !Ref "EnableSRTAccess"
+
+
   ShieldStackSet:
     Condition: AcceptedShieldTerms
     UpdateReplacePolicy: Delete
@@ -757,24 +823,47 @@ Resources:
       StackSetName: !Sub "FMS-Shield-${AWS::StackName}"
       Description: Create FMS Security Policy(s) to enable Shield Advanced Protection
       TemplateURL: !Sub "https://code-oneclickshield-${AWS::AccountId}-${AWS::Region}.s3.amazonaws.com/fms-shield.yaml"
-      PermissionModel: SERVICE_MANAGED
+      PermissionModel: !If [FMSIsPayer, SELF_MANAGED, SERVICE_MANAGED]
+      AdministrationRoleARN: !If
+        - FMSIsPayer
+        - !GetAtt StackSetAdminRole.Arn
+        - !Ref "AWS::NoValue"
+      ExecutionRoleName: !If
+        - FMSIsPayer
+        - !Sub "${AWS::StackName}-ExecutionRole"
+        - !Ref "AWS::NoValue"
       CallAs: !Ref CallAs
       OperationPreferences:
         RegionConcurrencyType: PARALLEL
         MaxConcurrentCount: 10
-      StackInstancesGroup:
-        - DeploymentTargets:
-            AccountFilterType: "INTERSECTION"
-            Accounts: 
-            - !If [FMSisSelfFlag, !Ref "AWS::AccountId", !Ref "FMSAdministratorAccount"]
-            OrganizationalUnitIds: !Ref "RootId"
-          Regions: !Ref ScopeRegions
+      StackInstancesGroup: !If
+        - FMSIsPayer
+        -
+          - DeploymentTargets:
+              Accounts:
+              - !Ref "AWS::AccountId"
+            Regions:
+              - !Ref "AWS::Region"
+        -
+          - DeploymentTargets:
+              AccountFilterType: "INTERSECTION"
+              Accounts: !If
+                - FMSisSelfFlag
+                - 
+                  - !Ref AWS::AccountId
+                - 
+                  - !Ref FMSAdministratorAccount
+              OrganizationalUnitIds: !Ref ScopeDetails
+            Regions:
+              - !Ref "AWS::Region"
       Capabilities:
         - CAPABILITY_IAM
         - CAPABILITY_NAMED_IAM 
-      AutoDeployment:
-        Enabled: True
-        RetainStacksOnAccountRemoval: False
+      AutoDeployment: !If
+        - FMSIsPayer
+        - !Ref "AWS::NoValue"
+        - Enabled: True
+          RetainStacksOnAccountRemoval: False
       Parameters:
         - ParameterKey: ScopeDetails
           ParameterValue: !Join [",", !Ref "ScopeDetails"]
@@ -826,24 +915,50 @@ Resources:
       StackSetName: !Sub "FMS-WAF-${AWS::StackName}"
       Description: Create FMS Security Policy(s) to deploy AWS WAF
       TemplateURL: !Sub "https://code-oneclickshield-${AWS::AccountId}-${AWS::Region}.s3.amazonaws.com/fms-wafv2.yaml"
-      PermissionModel: SERVICE_MANAGED
+      PermissionModel: !If [FMSIsPayer, SELF_MANAGED, SERVICE_MANAGED]
+      AdministrationRoleARN: !If
+        - FMSIsPayer
+        - !GetAtt StackSetAdminRole.Arn
+        - !Ref "AWS::NoValue"
+      ExecutionRoleName: !If
+        - FMSIsPayer
+        - !Sub "${AWS::StackName}-ExecutionRole"
+        - !Ref "AWS::NoValue"
       CallAs: !Ref CallAs
       OperationPreferences:
         RegionConcurrencyType: PARALLEL
         MaxConcurrentCount: 10
-      StackInstancesGroup:
-        - DeploymentTargets:
-            AccountFilterType: "INTERSECTION"
-            Accounts: 
-            - !If [FMSisSelfFlag, !Ref "AWS::AccountId", !Ref "FMSAdministratorAccount"]
-            OrganizationalUnitIds: !Ref "RootId"
-          Regions: !Ref ScopeRegions
+      StackInstancesGroup: !If
+        - FMSIsPayer
+        -
+          - DeploymentTargets:
+              Accounts:
+              - !Ref "AWS::AccountId"
+            Regions:
+              - !Ref "AWS::Region"
+        -
+          - DeploymentTargets:
+              AccountFilterType: "INTERSECTION"
+              Accounts: !If
+                - FMSisSelfFlag
+                - 
+                  - !Ref AWS::AccountId
+                - 
+                  - !Ref FMSAdministratorAccount
+              OrganizationalUnitIds: !Ref ScopeDetails
+            Regions:
+              - !Ref "AWS::Region"
       Capabilities:
         - CAPABILITY_IAM
         - CAPABILITY_NAMED_IAM 
-      AutoDeployment:
-        Enabled: True
-        RetainStacksOnAccountRemoval: False
+      AutoDeployment: !If
+        - FMSIsPayer
+        - !Ref "AWS::NoValue"
+        - Enabled: True
+          RetainStacksOnAccountRemoval: False
+      Capabilities:
+        - CAPABILITY_IAM
+        - CAPABILITY_NAMED_IAM 
       Parameters:
         - ParameterKey: S3BucketName
           ParameterValue: !Ref S3BucketName
@@ -893,3 +1008,48 @@ Resources:
           ParameterValue: !Ref "CoreRuleSetAMRAction"
         - ParameterKey: KnownBadInputsAMRAction
           ParameterValue: !Ref "KnownBadInputsAMRAction"
+
+  StackSetExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-ExecutionRole"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            AWS:
+            - !Sub "arn:aws:iam::${AWS::AccountId}:root"
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      Policies:
+      - PolicyName: root
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action: "*"
+            Resource: "*"
+
+  StackSetAdminRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: cloudformation.amazonaws.com
+          Action: sts:AssumeRole
+      Path: "/"
+      Policies:
+      - PolicyName: root
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Action:
+            - sts:AssumeRole
+            Resource:
+            - !Sub "arn:aws:iam::${AWS::AccountId}:role/${AWS::StackName}-ExecutionRole"
+            Effect: Allow

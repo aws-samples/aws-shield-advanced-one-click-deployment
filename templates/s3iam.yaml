@@ -470,10 +470,10 @@ Resources:
             print (json.dumps(event))
             if event['RequestType'] == 'Delete':
               try:
-                #athena_client.delete_work_group(
-                    #WorkGroup=workGroupName,
-                    #RecursiveDeleteOption=True
-                  #)
+                athena_client.delete_work_group(
+                    WorkGroup=workGroupName,
+                    RecursiveDeleteOption=True
+                  )
                 cfnrespond(event, context, "SUCCESS", {}, "Graceful Delete")
                 return
               except:
