@@ -842,8 +842,7 @@ Resources:
           - DeploymentTargets:
               Accounts:
               - !Ref "AWS::AccountId"
-            Regions:
-              - !Ref "AWS::Region"
+            Regions: !Ref ScopeRegions
         -
           - DeploymentTargets:
               AccountFilterType: "INTERSECTION"
@@ -854,8 +853,7 @@ Resources:
                 - 
                   - !Ref FMSAdministratorAccount
               OrganizationalUnitIds: !Ref ScopeDetails
-            Regions:
-              - !Ref "AWS::Region"
+            Regions: !Ref ScopeRegions
       Capabilities:
         - CAPABILITY_IAM
         - CAPABILITY_NAMED_IAM 
@@ -934,8 +932,7 @@ Resources:
           - DeploymentTargets:
               Accounts:
               - !Ref "AWS::AccountId"
-            Regions:
-              - !Ref "AWS::Region"
+            Regions: !Ref ScopeRegions
         -
           - DeploymentTargets:
               AccountFilterType: "INTERSECTION"
@@ -946,8 +943,7 @@ Resources:
                 - 
                   - !Ref FMSAdministratorAccount
               OrganizationalUnitIds: !Ref ScopeDetails
-            Regions:
-              - !Ref "AWS::Region"
+            Regions: !Ref ScopeRegions
       Capabilities:
         - CAPABILITY_IAM
         - CAPABILITY_NAMED_IAM 
