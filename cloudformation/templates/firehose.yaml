@@ -1,0 +1,76 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  WAFLogS3BucketName:
+    Type: String
+  WAFDeliveryRoleArn:
+    Type: String
+Resources:
+  WAFDeliveryLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/kinesisfirehose/${AWS::StackName}"
+      KmsKeyId: !GetAtt KMSKey.Arn
+      RetentionInDays: 365
+  WAFDeliveryLogStream:
+    DependsOn: WAFDeliveryLogGroup
+    Type: AWS::Logs::LogStream
+    Properties:
+      LogGroupName: !Sub "/aws/kinesisfirehose/${AWS::StackName}"
+  WAFDeliverystream:
+    Type: AWS::KinesisFirehose::DeliveryStream
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W88
+            reason: "There is no Delivery Stream, these are from FMS, not applicable"
+    Properties:
+      DeliveryStreamName: !Sub "aws-waf-logs-${AWS::StackName}-${AWS::Region}"
+      DeliveryStreamEncryptionConfigurationInput:
+        KeyARN: !GetAtt KMSKey.Arn
+        KeyType: CUSTOMER_MANAGED_CMK
+      ExtendedS3DestinationConfiguration:
+        BucketARN: !Sub "arn:aws:s3:::${WAFLogS3BucketName}"
+        CloudWatchLoggingOptions:
+          Enabled: true
+          LogGroupName: !Sub "/aws/kinesisfirehose/${AWS::StackName}"
+          LogStreamName: !Ref WAFDeliveryLogStream
+        BufferingHints:
+          IntervalInSeconds: 60
+          SizeInMBs: 50
+        CompressionFormat: UNCOMPRESSED
+        EncryptionConfiguration:
+          KMSEncryptionConfig:
+            AWSKMSKeyARN: !GetAtt "KMSKey.Arn"
+        Prefix: !Sub 'firehose/${AWS::Region}/'
+        RoleARN: !Ref WAFDeliveryRoleArn
+  KMSKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: CloudWatch Log Encryption Key
+      EnableKeyRotation: true
+      PendingWindowInDays: 20
+      KeyPolicy:
+        Version: '2012-10-17'
+        Id: key-default-1
+        Statement:
+        - Sid: Enable IAM User Permissions
+          Effect: Allow
+          Principal:
+            AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+          Action: kms:*
+          Resource: '*'
+        - Sid: Allow administration of the key
+          Effect: Allow
+          Principal:
+            Service: !Sub "logs.${AWS::Region}.amazonaws.com"
+          Action:
+            - kms:Encrypt
+            - kms:Decrypt
+            - kms:ReEncrypt*
+            - kms:GenerateDataKey
+            - kms:Describe*
+          Resource: '*'
+          Condition:
+            ArnEquals:
+              "kms:EncryptionContext:aws:logs:arn": !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/kinesisfirehose/${AWS::StackName}"
