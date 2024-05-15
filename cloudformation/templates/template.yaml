@@ -455,7 +455,7 @@ Parameters:
     Description: "Should in scope AWS resource types that support AWS WAF automatically be remediated?"
     Default: Yes | If no current WebACL
     AllowedValues:
-      - "Yes | Replace existing exsiting WebACL"
+      - "Yes | Replace existing existing WebACL"
       - "Yes | If no current WebACL"
       - "No"
   RegionalAutomaticResponseStatus:

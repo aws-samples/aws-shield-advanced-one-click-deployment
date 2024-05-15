@@ -21,8 +21,8 @@ locals {
   ScopeTagValue1Flag          = var.scope_tag_value1 != "<na>" ? true : false
   ScopeTagValue2Flag          = var.scope_tag_value2 != "<na>" ? true : false
   ScopeTagValue3Flag          = var.scope_tag_value3 != "<na>" ? true : false
-  AutoRemediateForceFlag      = var.wafv2_auto_remediate == "Yes | Replace existing exsiting WebACL" ? true : false
-  AutoRemediateFlag           = var.wafv2_auto_remediate == "Yes | If no current WebACL" || var.wafv2_auto_remediate == "Yes | Replace existing exsiting WebACL" ? true : false
+  AutoRemediateForceFlag      = var.wafv2_auto_remediate == "Yes | Replace existing existing WebACL" ? true : false
+  AutoRemediateFlag           = var.wafv2_auto_remediate == "Yes | If no current WebACL" || var.wafv2_auto_remediate == "Yes | Replace existing existing WebACL" ? true : false
   OUScopeFlag                 = var.scope_type == "OU" ? true : false
   AccountScopeFlag            = var.scope_type == "Accounts" ? true : false
   ExcludeResourceTagFlag      = var.resource_tag_usage == "Exclude" ? true : false

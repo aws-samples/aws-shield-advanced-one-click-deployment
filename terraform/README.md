@@ -338,7 +338,7 @@ Firewall Manager can create and associate WAF WebACLs for regional and global re
     Type: String
     Default: Yes | If no current WebACL
     AllowedValues:
-    - Yes | Replace existing exsiting WebACL
+    - Yes | Replace existing existing WebACL
     - Yes | If no current WebACL
     - No
 
