@@ -640,7 +640,7 @@ Resources:
     Type: AWS::Athena::NamedQuery
     Properties:
       Database: !Ref "GlueDatabaseWAFLogs"
-      Description: "Identify requets with labels from CoreRuleSet"
+      Description: "Identify requests with labels from CoreRuleSet"
       Name: "CoreRuleSet"
       WorkGroup: !Ref "AthenaWorkGroup"
       QueryString: !Sub |
