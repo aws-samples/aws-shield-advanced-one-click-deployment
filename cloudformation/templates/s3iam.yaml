@@ -176,8 +176,8 @@ Resources:
               "kms:EncryptionContext:aws:s3:arn":
                 - !If
                   - CreateBucket
-                  - !Sub "${WafLogsS3Bucket.Arn}"
-                  - !Sub "arn:aws:s3:::${S3BucketName}"
+                  - !Sub "${WafLogsS3Bucket.Arn}/*"
+                  - !Sub "arn:aws:s3:::${S3BucketName}/*"
                 - !If
                   - CreateBucket
                   - !Sub "arn:aws:s3:::${LoggingS3Bucket}/*"
