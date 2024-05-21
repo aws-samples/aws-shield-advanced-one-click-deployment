@@ -263,7 +263,7 @@ List of all AWS regions that are in scope for CloudFormation Stack Sets to deplo
 
     Required: Yes
     Type: CommaDelimitedList
-    AllowedPattern: ((af|ap|ca|eu|me|sa|us)-(central|north|(north(?:east|west))|south|south(?:east|west)|east|west)-\d+)(,\s(af|ap|ca|eu|me|sa|us)-(central|north|(north(?:east|west))|south|south(?:east|west)|east|west)-\d+)*
+    AllowedPattern: ((af|ap|ca|eu|me|sa|us|il)-(central|north|(north(?:east|west))|south|south(?:east|west)|east|west)-\d+)(,\s(af|ap|ca|eu|me|sa|us|il)-(central|north|(north(?:east|west))|south|south(?:east|west)|east|west)-\d+)*
 
 **CallAs**  
 CloudFormation Service Managed StackSets being run from a delegated CloudFormation StackSet administrator to specify they are calling as such.
