@@ -54,8 +54,8 @@ variable "wafv2_auto_remediate" {
   description = "Should in scope AWS resource types that support AWS WAF automatically be remediated?"
   type        = string
   validation {
-    condition     = contains(["Yes | Replace existing exsiting WebACL", "Yes | If no current WebACL", "No"], var.wafv2_auto_remediate)
-    error_message = "Allowed values are [ 'Yes | Replace existing exsiting WebACL' | 'Yes | If no current WebACL' | 'No']"
+    condition     = contains(["Yes | Replace existing existing WebACL", "Yes | If no current WebACL", "No"], var.wafv2_auto_remediate)
+    error_message = "Allowed values are [ 'Yes | Replace existing existing WebACL' | 'Yes | If no current WebACL' | 'No']"
   }
 }
 

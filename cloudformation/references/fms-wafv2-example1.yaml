@@ -46,7 +46,7 @@ Parameters:
     Type: String
     Description: "Should in scope AWS resource types that support AWS WAF automatically be remediated?"
     AllowedValues:
-      - "Yes | Replace existing exsiting WebACL"
+      - "Yes | Replace existing existing WebACL"
       - "Yes | If no current WebACL"
       - "No"
   ScopeTagName1:
@@ -118,10 +118,10 @@ Conditions:
     ScopeTagValue1Flag: !Not [!Equals [!Ref ScopeTagValue1, "<na>"]]
     ScopeTagValue2Flag: !Not [!Equals [!Ref ScopeTagValue2, "<na>"]]
     ScopeTagValue3Flag: !Not [!Equals [!Ref ScopeTagValue3, "<na>"]]
-    AutoRemediateForceFlag: !Equals [!Ref WAFv2AutoRemediate, "Yes | Replace existing exsiting WebACL"]
+    AutoRemediateForceFlag: !Equals [!Ref WAFv2AutoRemediate, "Yes | Replace existing existing WebACL"]
     AutoRemediateFlag: !Or
       - !Equals [!Ref WAFv2AutoRemediate, "Yes | If no current WebACL"]
-      - !Equals [!Ref WAFv2AutoRemediate, "Yes | Replace existing exsiting WebACL"]
+      - !Equals [!Ref WAFv2AutoRemediate, "Yes | Replace existing existing WebACL"]
     OUScopeFlag: !Equals [!Ref ScopeType, "OU"]
     AccountScopeFlag: !Equals [!Ref ScopeType, "Accounts"]
     ExcludeResourceTagFlag: !Equals [!Ref ResourceTagUsage, "Exclude"]
