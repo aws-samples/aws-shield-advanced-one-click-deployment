@@ -151,7 +151,7 @@ resource "aws_lambda_function" "athena_query_lambda" {
   #checkov:skip=CKV_AWS_272:Code signing not covered as part of this example.
   #checkov:skip=CKV_AWS_116:DLQ Not part of this solution example
   #checkov:skip=CKV_AWS_117:The lambda function does not need to be in a VPC for this example.
-  runtime          = "python3.9"
+  runtime          = "python3.12"
   function_name    = "athena_create_views_query-core"
   filename         = "athena_query_lambda.zip"
   source_code_hash = data.archive_file.athena_query_lambda.output_base64sha256

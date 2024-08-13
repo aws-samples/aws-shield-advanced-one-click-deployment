@@ -106,7 +106,7 @@ resource "aws_lambda_function" "configure_shield_lambda" {
     mode = "Active"
   }
 
-  runtime = "python3.9"
+  runtime = "python3.12"
   timeout = 15
   role    = aws_iam_role.shield_lambda_role.arn
   handler = "configure_shield.lambda_handler"
