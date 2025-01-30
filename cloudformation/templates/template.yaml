@@ -303,27 +303,27 @@ Parameters:
     Type: String
     Default: <na>
     Description: e.g. +15555555555 | This is required if you enable Proactive Engagement.
-    AllowedPattern: ^\+[0-9]{11}|\<na\>
+    AllowedPattern: ^\+[0-9]{14}|\<na\>
   EmergencyContactPhone2:
     Type: String
     Default: <na>
     Description: e.g. +15555555555
-    AllowedPattern: ^\+[0-9]{11}|\<na\>
+    AllowedPattern: ^\+[0-9]{14}|\<na\>
   EmergencyContactPhone3:
     Type: String
     Default: <na>
     Description: e.g. +15555555555
-    AllowedPattern: ^\+[0-9]{11}|\<na\>
+    AllowedPattern: ^\+[0-9]{14}|\<na\>
   EmergencyContactPhone4:
     Type: String
     Default: <na>
     Description: e.g. +15555555555
-    AllowedPattern: ^\+[0-9]{11}|\<na\>
+    AllowedPattern: ^\+[0-9]{14}|\<na\>
   EmergencyContactPhone5:
     Type: String
     Default: <na>
     Description: e.g. +15555555555
-    AllowedPattern: ^\+[0-9]{11}|\<na\>
+    AllowedPattern: ^\+[0-9]{14}|\<na\>
   EmergencyContactNote1:
     Type: String
     Default: <na>
