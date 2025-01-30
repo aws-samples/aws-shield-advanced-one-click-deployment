@@ -719,3 +719,9 @@ For Firewall Manager Security policies for WAFv2 protection, one or more tag nam
     Required: No
     Type: String
     Default: <na>
+
+
+# Cleanup
+Delete the top level CloudFormation stack.  This deletes everything except for a few specific things:
+S3 Bucket for WAF logs:  A S3 bucket used to capture WAF logs is not deleted.  If desired, delete all objects and then delete this bucket manually
+AWS WAF Rule Group(s):  Assuming you are using the default FMS WAF setup, a rule groups is created for a rate based rule.  These rule group(s) are not deleted since they will be referenced by in scope resources to the WAF FMS policy.  Until resources in other accounts are no longer referencing them, they cannot be deleted.  There is no direct cost for an existing Rule Group. Delete these once no WebACLs reference these rule groups.
