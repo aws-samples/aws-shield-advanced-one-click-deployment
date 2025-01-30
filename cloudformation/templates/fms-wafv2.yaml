@@ -262,6 +262,7 @@ Resources:
           Value: aws-shield-advanced-one-click-deployment
   RegionalRateLimitRuleGroup:
     Condition: CreateRegionalPolicyFlag
+    DeletionPolicy: Retain
     Type: 'AWS::WAFv2::RuleGroup'
     Properties:
       Scope: REGIONAL
@@ -287,6 +288,7 @@ Resources:
             MetricName: RateLimit
   CloudFrontRateLimitRuleGroup:
     Condition: CreateCloudFrontPolicyFlag
+    DeletionPolicy: Retain
     Type: 'AWS::WAFv2::RuleGroup'
     Properties:
       Scope: CLOUDFRONT

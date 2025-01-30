@@ -675,7 +675,7 @@ Resources:
                   - !Ref AWS::AccountId
                 - 
                   - !Ref FMSAdministratorAccount
-              OrganizationalUnitIds: !Ref ScopeDetails
+              OrganizationalUnitIds: !If [FMSIsPayer, !Ref AWS::NoValue, !Ref RootId]
             Regions:
               - !Ref "AWS::Region"
       Capabilities:
@@ -853,7 +853,7 @@ Resources:
                   - !Ref AWS::AccountId
                 - 
                   - !Ref FMSAdministratorAccount
-              OrganizationalUnitIds: !Ref ScopeDetails
+              OrganizationalUnitIds: !If [FMSIsPayer, !Ref AWS::NoValue, !Ref RootId]
             Regions:
               - !Ref "AWS::Region"
       Capabilities:
@@ -945,7 +945,7 @@ Resources:
                   - !Ref AWS::AccountId
                 - 
                   - !Ref FMSAdministratorAccount
-              OrganizationalUnitIds: !Ref ScopeDetails
+              OrganizationalUnitIds: !If [FMSIsPayer, !Ref AWS::NoValue, !Ref RootId]
             Regions:
               - !Ref "AWS::Region"
       Capabilities:
@@ -956,9 +956,6 @@ Resources:
         - !Ref "AWS::NoValue"
         - Enabled: True
           RetainStacksOnAccountRemoval: False
-      Capabilities:
-        - CAPABILITY_IAM
-        - CAPABILITY_NAMED_IAM 
       Parameters:
         - ParameterKey: S3BucketName
           ParameterValue: !Ref S3BucketName
